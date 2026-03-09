@@ -1,0 +1,6 @@
+docs
+build
+node_modules
+.idea
+.DS_Store
+secret.txt
