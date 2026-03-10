@@ -81,15 +81,18 @@ const awsApiTask = AwsEcsTaskDefinition.satisfy(bp('api-workload'))
 // ── ECS Services — satisfy Workload blueprint, add Fargate launch params ───────
 // desiredCount, links (traffic rules), SG membership, subnet dep, and cluster
 // dep are all carried from the blueprint automatically.
+// withTaskDefinition() adds the AWS-specific sub-component dependency.
 
 const awsWebService = AwsEcsService.satisfy(bp('web-workload'))
   .withLaunchType('FARGATE')
   .withAssignPublicIp(false)
+  .withTaskDefinition(awsWebTask)
   .build();
 
 const awsApiService = AwsEcsService.satisfy(bp('api-workload'))
   .withLaunchType('FARGATE')
   .withAssignPublicIp(false)
+  .withTaskDefinition(awsApiTask)
   .build();
 
 // ── Live System ────────────────────────────────────────────────────────────────

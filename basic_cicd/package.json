@@ -1,7 +1,7 @@
 {
-  "name": "basic-ecs",
+  "name": "basic-cicd",
   "version": "0.0.1",
-  "description": "Fractal + AWS Live System sample — ECS Cluster, Task Definitions, and Services on Fargate",
+  "description": "Fractal + AWS Live System sample — CI/CD deployment with wait mode",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "files": [

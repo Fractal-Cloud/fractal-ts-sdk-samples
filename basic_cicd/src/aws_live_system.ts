@@ -1,16 +1,14 @@
 /**
  * aws_live_system.ts
  *
- * Satisfies the basic IaaS Fractal with AWS-specific components:
+ * Satisfies the basic CI/CD Fractal with AWS-specific components:
  *   - AwsVpc          satisfies VirtualNetwork
  *   - AwsSubnet       satisfies Subnet  (adds availability zone)
- *   - AwsSecurityGroup satisfies SecurityGroup (adds ingress rules)
+ *   - AwsSecurityGroup satisfies SecurityGroup
  *   - Ec2Instance     satisfies VirtualMachine (adds AMI, instance type, etc.)
  *
- * Components depend on each other following the agent contract:
- *   Subnet   → depends on VPC
- *   SecGroup → depends on VPC
- *   EC2      → depends on Subnet
+ * This file contains only vendor-specific parameters.
+ * All structural wiring (dependencies, links, hierarchy) lives in fractal.ts.
  */
 
 import {
@@ -42,39 +40,39 @@ export function getLiveSystem(): LiveSystem {
     .build();
 
   const awsSubnet = AwsSubnet.satisfy(bp('public-subnet'))
-    .withAvailabilityZone('eu-central-1a')
+    .withAvailabilityZone(process.env['AWS_AVAILABILITY_ZONE'] ?? 'eu-central-1a')
     .build();
 
   const awsSecurityGroup = AwsSecurityGroup.satisfy(bp('web-sg')).build();
 
   const webBuilder = Ec2Instance.satisfy(bp('web-server'))
-    .withAmiId('ami-096a4fdbcf530d8e0')
-    .withInstanceType('t3.micro')
+    .withAmiId(process.env['EC2_AMI_ID'] ?? 'ami-0970102fe1454052a')
+    .withInstanceType(process.env['EC2_INSTANCE_TYPE'] ?? 't3.micro')
     .withAssociatePublicIp(true);
   if (process.env['EC2_KEY_NAME']) webBuilder.withKeyName(process.env['EC2_KEY_NAME']);
   const ec2WebServer = webBuilder.build();
 
   const apiBuilder = Ec2Instance.satisfy(bp('api-server'))
-    .withAmiId('ami-096a4fdbcf530d8e0')
-    .withInstanceType('t3.small')
+    .withAmiId(process.env['EC2_AMI_ID'] ?? 'ami-0970102fe1454052a')
+    .withInstanceType(process.env['EC2_INSTANCE_TYPE'] ?? 't3.small')
     .withAssociatePublicIp(false);
   if (process.env['EC2_KEY_NAME']) apiBuilder.withKeyName(process.env['EC2_KEY_NAME']);
   const ec2ApiServer = apiBuilder.build();
 
   // ── Live System ────────────────────────────────────────────────────────────────
 
-  const liveSystem = LiveSystem.getBuilder()
+  return LiveSystem.getBuilder()
     .withId(
       LiveSystem.Id.getBuilder()
         .withBoundedContextId(bcId)
         .withName(
-          KebabCaseString.getBuilder().withValue('basic-iaas-aws').build(),
+          KebabCaseString.getBuilder().withValue('basic-cicd-aws').build(),
         )
         .build(),
     )
     .withFractalId(fractal.id)
     .withDescription(
-      'Basic IaaS workload deployed on AWS (VPC + Subnet + SG + EC2)',
+      'Basic IaaS workload deployed on AWS via CI/CD pipeline (VPC + Subnet + SG + EC2)',
     )
     .withGenericProvider('AWS')
     .withEnvironment(
@@ -100,6 +98,4 @@ export function getLiveSystem(): LiveSystem {
     .withComponent(ec2WebServer)
     .withComponent(ec2ApiServer)
     .build();
-
-  return liveSystem;
 }

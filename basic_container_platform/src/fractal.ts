@@ -56,7 +56,7 @@ const appSg = SecurityGroup.create({
       protocol: 'tcp',
       fromPort: 8080,
       toPort: 8080,
-      sourceCidr: '10.0.0.0/16',
+      sourceCidr: '10.2.0.0/16',
     },
   ],
 });
@@ -73,7 +73,7 @@ const apiWorkload = Workload.create({
   cpu: '512',
   memory: '1024',
   desiredCount: 2,
-}).withSecurityGroups([appSg]);
+}).linkToSecurityGroup([appSg]);
 
 const webWorkload = Workload.create({
   id: 'web-workload',
@@ -86,8 +86,8 @@ const webWorkload = Workload.create({
   memory: '512',
   desiredCount: 2,
 })
-  .withLinks([{target: apiWorkload, fromPort: 8080, protocol: 'tcp'}])
-  .withSecurityGroups([appSg]);
+  .linkToWorkload([{target: apiWorkload, fromPort: 8080, protocol: 'tcp'}])
+  .linkToSecurityGroup([appSg]);
 
 // ── Container Platform (cluster dep auto-wired into each workload) ─────────────
 
@@ -105,7 +105,7 @@ const network = VirtualNetwork.create({
   version: {major: 1, minor: 0, patch: 0},
   displayName: 'Main Network',
   description: 'Primary network for the container workload',
-  cidrBlock: '10.0.0.0/16',
+  cidrBlock: '10.2.0.0/16',
 })
   .withSubnets([
     Subnet.create({
@@ -113,7 +113,7 @@ const network = VirtualNetwork.create({
       version: {major: 1, minor: 0, patch: 0},
       displayName: 'Private Subnet',
       description: 'Private subnet — containers run here with no public IPs',
-      cidrBlock: '10.0.1.0/24',
+      cidrBlock: '10.2.1.0/24',
     }).withWorkloads(containerPlatform.workloads),
   ])
   .withSecurityGroups([appSg]);

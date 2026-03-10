@@ -11,10 +11,11 @@ Each sample is a standalone TypeScript project. It declares a **Fractal** (cloud
 
 ## Samples
 
-| Sample | Providers | Description |
-|--------|-----------|-------------|
-| [basic_iaas](./basic_iaas) | AWS · Azure · GCP · OCI · Hetzner | VPC + Subnet + Security Group + two VMs |
-| [basic_container_platform](./basic_container_platform) | AWS | VPC + Subnet + Security Group + ECS Cluster + two Fargate workloads |
+| Sample | Providers | Deploy mode | Description |
+|--------|-----------|-------------|-------------|
+| [basic_iaas](./basic_iaas) | AWS · Azure · GCP · OCI · Hetzner | fire-and-forget | VPC + Subnet + Security Group + two VMs |
+| [basic_container_platform](./basic_container_platform) | AWS | fire-and-forget | VPC + Subnet + Security Group + ECS Cluster + two Fargate workloads |
+| [basic_cicd](./basic_cicd) | AWS | wait (blocks until Active) | CI/CD pipeline deployment — process exits 0 on success, 1 on failure |
 
 ## Architecture
 
