@@ -55,7 +55,7 @@ Only the selected provider's environment variables need to be set.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `EC2_KEY_NAME` | no | `default-key` | EC2 key pair name for SSH access |
+| `EC2_KEY_NAME` | no | _(none)_ | EC2 key pair name for SSH access; omit to launch without a key pair |
 
 ### Azure (`CLOUD_PROVIDER=azure`)
 
