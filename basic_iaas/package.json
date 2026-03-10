@@ -23,6 +23,6 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "file:../../fractal-ts-sdk"
+    "@fractal_cloud/sdk": "^1.1.0"
   }
 }
