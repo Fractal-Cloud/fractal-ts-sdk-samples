@@ -67,7 +67,7 @@ export function getLiveSystem(): LiveSystem {
     .withNetworkMode('awsvpc')
     .withExecutionRoleArn(
       process.env['ECS_EXECUTION_ROLE_ARN'] ??
-        'arn:aws:iam::123456789012:role/ecsTaskExecutionRole',
+        '',
     )
     .build();
 
@@ -75,11 +75,11 @@ export function getLiveSystem(): LiveSystem {
     .withNetworkMode('awsvpc')
     .withExecutionRoleArn(
       process.env['ECS_EXECUTION_ROLE_ARN'] ??
-        'arn:aws:iam::123456789012:role/ecsTaskExecutionRole',
+        '',
     )
     .withTaskRoleArn(
       process.env['ECS_TASK_ROLE_ARN'] ??
-        'arn:aws:iam::123456789012:role/ecsApiTaskRole',
+        '',
     )
     .build();
 
