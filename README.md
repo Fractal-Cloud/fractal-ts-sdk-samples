@@ -14,7 +14,7 @@ Each sample is a standalone TypeScript project. It declares a **Fractal** (cloud
 | Sample | Providers | Deploy mode | Description |
 |--------|-----------|-------------|-------------|
 | [basic_iaas](./basic_iaas) | AWS · Azure · GCP · OCI · Hetzner | fire-and-forget | VPC + Subnet + Security Group + two VMs |
-| [basic_container_platform](./basic_container_platform) | AWS | fire-and-forget | VPC + Subnet + Security Group + ECS Cluster + two Fargate workloads |
+| [basic_container_platform](./basic_container_platform) | AWS · Azure · GCP | fire-and-forget | VPC + Subnet + Security Group + container platform + two workloads (ECS Fargate / Container Apps / Cloud Run) |
 | [basic_cicd](./basic_cicd) | AWS | wait (blocks until Active) | CI/CD pipeline deployment — process exits 0 on success, 1 on failure |
 
 ## Architecture
@@ -52,6 +52,16 @@ node build/src/index.js
 
 # Deploy on a different provider
 CLOUD_PROVIDER=azure node build/src/index.js
+CLOUD_PROVIDER=gcp   node build/src/index.js
 ```
+
+### Provider support per sample
+
+| Sample | `aws` | `azure` | `gcp` | `oci` | `hetzner` |
+|--------|-------|---------|-------|-------|-----------|
+| `basic_iaas` | EC2 | Azure VM | GCP VM | OCI Instance | Hetzner Server |
+| `basic_container_platform` | ECS Fargate | Container Apps | Cloud Run | — | — |
+
+> `basic_iaas` supports all five providers; `basic_container_platform` supports AWS, Azure, and GCP.
 
 See each sample's `README.md` for the full list of environment variables per provider.

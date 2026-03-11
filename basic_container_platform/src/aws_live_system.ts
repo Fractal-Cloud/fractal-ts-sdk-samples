@@ -12,6 +12,10 @@
  * Structural properties — dependencies, links, desiredCount, containerImage,
  * cpu, memory, ingressRules — are all locked in the blueprint and carried over
  * automatically by satisfy(). Only AWS-specific parameters are set here.
+ *
+ * Environment variables:
+ *   ECS_EXECUTION_ROLE_ARN  – (optional) IAM execution role ARN for ECS tasks
+ *   ECS_TASK_ROLE_ARN       – (optional) IAM task role ARN for the API workload
  */
 
 import {
@@ -36,106 +40,108 @@ function bp(id: string) {
   return c;
 }
 
-// ── Network ────────────────────────────────────────────────────────────────────
+export function getLiveSystem(): LiveSystem {
+  // ── Network ──────────────────────────────────────────────────────────────────
 
-const awsVpc = AwsVpc.satisfy(bp('main-network'))
-  .withEnableDnsSupport(true)
-  .withEnableDnsHostnames(true)
-  .build();
+  const awsVpc = AwsVpc.satisfy(bp('main-network'))
+    .withEnableDnsSupport(true)
+    .withEnableDnsHostnames(true)
+    .build();
 
-const awsSubnet = AwsSubnet.satisfy(bp('private-subnet'))
-  .withAvailabilityZone('eu-central-1a')
-  .build();
+  const awsSubnet = AwsSubnet.satisfy(bp('private-subnet'))
+    .withAvailabilityZone('eu-central-1a')
+    .build();
 
-// Ingress rules (port 80 + port 8080) are carried from the blueprint automatically
-const awsSecurityGroup = AwsSecurityGroup.satisfy(bp('app-sg')).build();
+  // Ingress rules (port 80 + port 8080) are carried from the blueprint automatically
+  const awsSecurityGroup = AwsSecurityGroup.satisfy(bp('app-sg')).build();
 
-// ── ECS Cluster — satisfies the blueprint ContainerPlatform ───────────────────
+  // ── ECS Cluster — satisfies the blueprint ContainerPlatform ──────────────────
 
-const awsCluster = AwsEcsCluster.satisfy(bp('app-cluster')).build();
+  const awsCluster = AwsEcsCluster.satisfy(bp('app-cluster')).build();
 
-// ── Task Definitions — satisfy Workload blueprint, add IAM role ARNs ──────────
-// containerImage, cpu, memory, containerPort are locked from the blueprint.
-// ID is <workload-id>-task to avoid collision with the service component.
+  // ── Task Definitions — satisfy Workload blueprint, add IAM role ARNs ─────────
+  // containerImage, cpu, memory, containerPort are locked from the blueprint.
+  // ID is <workload-id>-task to avoid collision with the service component.
 
-const awsWebTask = AwsEcsTaskDefinition.satisfy(bp('web-workload'))
-  .withNetworkMode('awsvpc')
-  .withExecutionRoleArn(
-    process.env['ECS_EXECUTION_ROLE_ARN'] ??
-      'arn:aws:iam::123456789012:role/ecsTaskExecutionRole',
-  )
-  .build();
+  const awsWebTask = AwsEcsTaskDefinition.satisfy(bp('web-workload'))
+    .withNetworkMode('awsvpc')
+    .withExecutionRoleArn(
+      process.env['ECS_EXECUTION_ROLE_ARN'] ??
+        'arn:aws:iam::123456789012:role/ecsTaskExecutionRole',
+    )
+    .build();
 
-const awsApiTask = AwsEcsTaskDefinition.satisfy(bp('api-workload'))
-  .withNetworkMode('awsvpc')
-  .withExecutionRoleArn(
-    process.env['ECS_EXECUTION_ROLE_ARN'] ??
-      'arn:aws:iam::123456789012:role/ecsTaskExecutionRole',
-  )
-  .withTaskRoleArn(
-    process.env['ECS_TASK_ROLE_ARN'] ??
-      'arn:aws:iam::123456789012:role/ecsApiTaskRole',
-  )
-  .build();
+  const awsApiTask = AwsEcsTaskDefinition.satisfy(bp('api-workload'))
+    .withNetworkMode('awsvpc')
+    .withExecutionRoleArn(
+      process.env['ECS_EXECUTION_ROLE_ARN'] ??
+        'arn:aws:iam::123456789012:role/ecsTaskExecutionRole',
+    )
+    .withTaskRoleArn(
+      process.env['ECS_TASK_ROLE_ARN'] ??
+        'arn:aws:iam::123456789012:role/ecsApiTaskRole',
+    )
+    .build();
 
-// ── ECS Services — satisfy Workload blueprint, add Fargate launch params ───────
-// desiredCount, links (traffic rules), SG membership, subnet dep, and cluster
-// dep are all carried from the blueprint automatically.
-// withTaskDefinition() adds the AWS-specific sub-component dependency.
+  // ── ECS Services — satisfy Workload blueprint, add Fargate launch params ──────
+  // desiredCount, links (traffic rules), SG membership, subnet dep, and cluster
+  // dep are all carried from the blueprint automatically.
+  // withTaskDefinition() adds the AWS-specific sub-component dependency.
 
-const awsWebService = AwsEcsService.satisfy(bp('web-workload'))
-  .withLaunchType('FARGATE')
-  .withAssignPublicIp(false)
-  .withTaskDefinition(awsWebTask)
-  .build();
+  const awsWebService = AwsEcsService.satisfy(bp('web-workload'))
+    .withLaunchType('FARGATE')
+    .withAssignPublicIp(false)
+    .withTaskDefinition(awsWebTask)
+    .build();
 
-const awsApiService = AwsEcsService.satisfy(bp('api-workload'))
-  .withLaunchType('FARGATE')
-  .withAssignPublicIp(false)
-  .withTaskDefinition(awsApiTask)
-  .build();
+  const awsApiService = AwsEcsService.satisfy(bp('api-workload'))
+    .withLaunchType('FARGATE')
+    .withAssignPublicIp(false)
+    .withTaskDefinition(awsApiTask)
+    .build();
 
-// ── Live System ────────────────────────────────────────────────────────────────
+  // ── Live System ───────────────────────────────────────────────────────────────
 
-export const liveSystem = LiveSystem.getBuilder()
-  .withId(
-    LiveSystem.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder()
-          .withValue('basic-container-platform-aws')
-          .build(),
-      )
-      .build(),
-  )
-  .withFractalId(fractal.id)
-  .withDescription(
-    'Two-tier container workload on AWS ECS Fargate (VPC + Subnet + SG + ECS Cluster + 2 Workloads)',
-  )
-  .withGenericProvider('AWS')
-  .withEnvironment(
-    Environment.getBuilder()
-      .withId(
-        Environment.Id.getBuilder()
-          .withOwnerType(OwnerType.Personal)
-          .withOwnerId(
-            OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build(),
-          )
-          .withName(
-            KebabCaseString.getBuilder()
-              .withValue(process.env['ENVIRONMENT_NAME'] ?? 'dev')
-              .build(),
-          )
-          .build(),
-      )
-      .build(),
-  )
-  .withComponent(awsVpc)
-  .withComponent(awsSubnet)
-  .withComponent(awsSecurityGroup)
-  .withComponent(awsCluster)
-  .withComponent(awsWebTask)
-  .withComponent(awsApiTask)
-  .withComponent(awsWebService)
-  .withComponent(awsApiService)
-  .build();
+  return LiveSystem.getBuilder()
+    .withId(
+      LiveSystem.Id.getBuilder()
+        .withBoundedContextId(bcId)
+        .withName(
+          KebabCaseString.getBuilder()
+            .withValue('basic-container-platform-aws')
+            .build(),
+        )
+        .build(),
+    )
+    .withFractalId(fractal.id)
+    .withDescription(
+      'Two-tier container workload on AWS ECS Fargate (VPC + Subnet + SG + ECS Cluster + 2 Workloads)',
+    )
+    .withGenericProvider('AWS')
+    .withEnvironment(
+      Environment.getBuilder()
+        .withId(
+          Environment.Id.getBuilder()
+            .withOwnerType(OwnerType.Personal)
+            .withOwnerId(
+              OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build(),
+            )
+            .withName(
+              KebabCaseString.getBuilder()
+                .withValue(process.env['ENVIRONMENT_NAME'] ?? 'dev')
+                .build(),
+            )
+            .build(),
+        )
+        .build(),
+    )
+    .withComponent(awsVpc)
+    .withComponent(awsSubnet)
+    .withComponent(awsSecurityGroup)
+    .withComponent(awsCluster)
+    .withComponent(awsWebTask)
+    .withComponent(awsApiTask)
+    .withComponent(awsWebService)
+    .withComponent(awsApiService)
+    .build();
+}
