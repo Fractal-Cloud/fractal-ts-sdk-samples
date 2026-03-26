@@ -18,6 +18,7 @@
  *
  * Optional environment variables:
  *   ENVIRONMENT_NAME        – kebab-case environment name (default: "dev")
+ *   RESOURCE_GROUP_NAME    - kebab-case target resource group name, e.g. "wizard"
  *   DEPLOY_TIMEOUT_MS       – max ms to wait for Active status (default: 600000 = 10 min)
  *   DEPLOY_POLL_INTERVAL_MS – polling interval in ms (default: 5000 = 5 s)
  *   AWS_AVAILABILITY_ZONE   – EC2 subnet AZ (default: "eu-central-1a")

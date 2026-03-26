@@ -14,6 +14,7 @@
  *   SERVICE_ACCOUNT_SECRET – Fractal Cloud service account secret
  *   OWNER_ID               – UUID of the Fractal Cloud owner
  *   ENVIRONMENT_NAME       – kebab-case environment name, e.g. "dev"
+ *   RESOURCE_GROUP_NAME    - kebab-case target resource group name, e.g. "wizard"
  *
  * Azure-specific:
  *   AZURE_LOCATION         – (optional) Azure region, default "westeurope"

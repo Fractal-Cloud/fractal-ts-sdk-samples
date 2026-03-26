@@ -8,6 +8,7 @@ Each sample is a standalone TypeScript project. It declares a **Fractal** (cloud
 
 - Node.js 18+
 - A Fractal Cloud account with a service account
+- The necessary resources for a deployment, for instance: Environment, Resource Group and Cloud Agent
 
 ## Samples
 

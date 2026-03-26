@@ -54,6 +54,7 @@ CLOUD_PROVIDER=azure node build/src/index.js
 | `SERVICE_ACCOUNT_SECRET` | yes | Fractal Cloud service account secret |
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
 | `ENVIRONMENT_NAME` | no | kebab-case environment name (default: `dev`) |
+| `RESOURCE_GROUP_NAME` | yes | kebab-case target resource group name, e.g. `wizard` |
 
 ### AWS (`CLOUD_PROVIDER=aws`)
 

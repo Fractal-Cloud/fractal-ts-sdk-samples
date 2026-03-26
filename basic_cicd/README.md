@@ -33,6 +33,7 @@ This sample uses `wait` mode. The polling interval and timeout are both configur
 | `SERVICE_ACCOUNT_SECRET` | yes | — | Fractal Cloud service account secret |
 | `OWNER_ID` | yes | — | UUID of the Fractal Cloud owner |
 | `ENVIRONMENT_NAME` | no | `dev` | Kebab-case environment name |
+| `RESOURCE_GROUP_NAME` | yes | kebab-case target resource group name, e.g. `wizard` |
 | `DEPLOY_TIMEOUT_MS` | no | `600000` | Max wait time in ms (10 min) |
 | `DEPLOY_POLL_INTERVAL_MS` | no | `5000` | Polling interval in ms (5 s) |
 | `AWS_AVAILABILITY_ZONE` | no | `eu-central-1a` | EC2 subnet availability zone |

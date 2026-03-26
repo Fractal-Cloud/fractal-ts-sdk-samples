@@ -50,6 +50,7 @@ Only the selected provider's environment variables need to be set.
 | `SERVICE_ACCOUNT_SECRET` | yes | Fractal Cloud service account secret |
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
 | `ENVIRONMENT_NAME` | yes | kebab-case target environment name, e.g. `dev` |
+| `RESOURCE_GROUP_NAME` | yes | kebab-case target resource group name, e.g. `wizard` |
 
 ### AWS (`CLOUD_PROVIDER=aws`)
 
@@ -106,6 +107,7 @@ export SERVICE_ACCOUNT_ID=<id>
 export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 export ENVIRONMENT_NAME=dev
+export RESOURCE_GROUP_NAME=wizard
 
 # AWS (default)
 node build/src/index.js
