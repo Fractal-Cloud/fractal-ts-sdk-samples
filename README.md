@@ -22,6 +22,8 @@ Each sample is a standalone TypeScript project. It declares a **Fractal** (cloud
 | [basic_api_management](./basic_api_management) | AWS · Azure · GCP | fire-and-forget | API Gateway (CloudFront / Azure API Management / GCP API Gateway) |
 | [basic_observability](./basic_observability) | CaaS | fire-and-forget | Monitoring + Tracing + Logging (Prometheus + Jaeger + Elastic) |
 | [basic_security](./basic_security) | CaaS | fire-and-forget | Service Mesh (Ocelot) |
+| [basic_onprem_vmware](./basic_onprem_vmware) | VMware | fire-and-forget | Port Group + VLAN + two vSphere VMs |
+| [basic_onprem_openshift](./basic_onprem_openshift) | OpenShift | fire-and-forget | NetworkPolicy + two Workloads + Service/Route + PersistentVolume + KubeVirt VM |
 
 ## Architecture
 
@@ -64,15 +66,17 @@ CLOUD_PROVIDER=gcp   node build/src/index.js
 
 ### Provider support per sample
 
-| Sample | `aws` | `azure` | `gcp` | `oci` | `hetzner` | `caas` |
-|--------|-------|---------|-------|-------|-----------|--------|
-| `basic_iaas` | EC2 | Azure VM | GCP VM | OCI Instance | Hetzner Server | — |
-| `basic_container_platform` | ECS Fargate | Container Apps | Cloud Run | — | — | — |
-| `basic_storage` | S3 | Storage Account + PostgreSQL | Cloud Storage + Cloud SQL | — | — | — |
-| `basic_messaging` | — | Service Bus | Pub/Sub | — | — | — |
-| `basic_big_data` | Databricks | Databricks | Databricks | — | — | — |
-| `basic_api_management` | CloudFront | API Management | API Gateway | — | — | — |
-| `basic_observability` | — | — | — | — | — | Prometheus + Jaeger + Elastic |
-| `basic_security` | — | — | — | — | — | Ocelot |
+| Sample | `aws` | `azure` | `gcp` | `oci` | `hetzner` | `caas` | `vmware` | `openshift` |
+|--------|-------|---------|-------|-------|-----------|--------|----------|-------------|
+| `basic_iaas` | EC2 | Azure VM | GCP VM | OCI Instance | Hetzner Server | — | — | — |
+| `basic_container_platform` | ECS Fargate | Container Apps | Cloud Run | — | — | — | — | — |
+| `basic_storage` | S3 | Storage Account + PostgreSQL | Cloud Storage + Cloud SQL | — | — | — | — | — |
+| `basic_messaging` | — | Service Bus | Pub/Sub | — | — | — | — | — |
+| `basic_big_data` | Databricks | Databricks | Databricks | — | — | — | — | — |
+| `basic_api_management` | CloudFront | API Management | API Gateway | — | — | — | — | — |
+| `basic_observability` | — | — | — | — | — | Prometheus + Jaeger + Elastic | — | — |
+| `basic_security` | — | — | — | — | — | Ocelot | — | — |
+| `basic_onprem_vmware` | — | — | — | — | — | — | PortGroup + VLAN + VMs | — |
+| `basic_onprem_openshift` | — | — | — | — | — | — | — | Workloads + Service + NetworkPolicy + PV + VM |
 
 See each sample's `README.md` for the full list of environment variables per provider.
