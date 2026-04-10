@@ -5,8 +5,17 @@
  * Maps blueprint components to CaaS offers: Prometheus, Jaeger, and Elastic.
  */
 
-import {LiveSystem, Prometheus, Jaeger, ObservabilityElastic} from 'fractal-ts-sdk';
-import {fractal, monitoring, tracing, logging} from './fractal';
+import {
+  Environment,
+  Jaeger,
+  KebabCaseString,
+  LiveSystem,
+  ObservabilityElastic,
+  OwnerId,
+  OwnerType,
+  Prometheus,
+} from '@fractal_cloud/sdk';
+import {bcId, fractal, logging, monitoring, tracing} from './fractal';
 
 export function getLiveSystem(): LiveSystem {
   const prometheus = Prometheus.satisfy(monitoring.component)
@@ -27,8 +36,41 @@ export function getLiveSystem(): LiveSystem {
     .withIsKibanaRequired(true)
     .build();
 
-  return LiveSystem.build({
-    fractal,
-    components: [prometheus, jaeger, elastic],
-  });
+  return LiveSystem.getBuilder()
+    .withId(
+      LiveSystem.Id.getBuilder()
+        .withBoundedContextId(bcId)
+        .withName(
+          KebabCaseString.getBuilder()
+            .withValue('basic-observability-caas')
+            .build(),
+        )
+        .build(),
+    )
+    .withFractalId(fractal.id)
+    .withDescription(
+      'Observability on CaaS — Prometheus + Jaeger + Elastic',
+    )
+    .withGenericProvider('CaaS')
+    .withEnvironment(
+      Environment.getBuilder()
+        .withId(
+          Environment.Id.getBuilder()
+            .withOwnerType(OwnerType.Personal)
+            .withOwnerId(
+              OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build(),
+            )
+            .withName(
+              KebabCaseString.getBuilder()
+                .withValue(process.env['ENVIRONMENT_NAME'] ?? 'dev')
+                .build(),
+            )
+            .build(),
+        )
+        .build(),
+    )
+    .withComponent(prometheus)
+    .withComponent(jaeger)
+    .withComponent(elastic)
+    .build();
 }

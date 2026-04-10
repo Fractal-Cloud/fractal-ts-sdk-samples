@@ -1,7 +1,7 @@
 {
-  "name": "basic-cicd",
+  "name": "basic-onprem-openshift",
   "version": "0.0.1",
-  "description": "Fractal + AWS Live System sample — CI/CD deployment with wait mode",
+  "description": "Fractal + OpenShift Live System sample — on-prem CaaS + IaaS (Workloads, Service, NetworkPolicy, PersistentVolume, VM)",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "files": [

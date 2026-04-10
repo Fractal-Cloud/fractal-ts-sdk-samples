@@ -6,13 +6,24 @@
  */
 
 import {
-  Fractal,
-  Monitoring,
-  Tracing,
-  Logging,
   BoundedContext,
+  Fractal,
   KebabCaseString,
-} from 'fractal-ts-sdk';
+  Logging,
+  Monitoring,
+  OwnerId,
+  OwnerType,
+  Tracing,
+  Version,
+} from '@fractal_cloud/sdk';
+
+// ── Bounded Context ────────────────────────────────────────────────────────────
+
+export const bcId = BoundedContext.Id.getBuilder()
+  .withOwnerType(OwnerType.Personal)
+  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
+  .withName(KebabCaseString.getBuilder().withValue('wizard').build())
+  .build();
 
 // ── Blueprint components ─────────────────────────────────────────────────────
 
@@ -36,17 +47,21 @@ export const logging = Logging.create({
 
 // ── Fractal ──────────────────────────────────────────────────────────────────
 
-export const fractal = Fractal.build({
-  boundedContext: BoundedContext.build({
-    id: KebabCaseString.getBuilder().withValue('observability-ctx').build(),
-    name: 'Observability Context',
-  }),
-  id: KebabCaseString.getBuilder().withValue('basic-observability').build(),
-  name: 'Basic Observability',
-  description: 'A basic observability stack with monitoring, tracing, and logging',
-  components: [
+export const fractal = Fractal.getBuilder()
+  .withId(
+    Fractal.Id.getBuilder()
+      .withBoundedContextId(bcId)
+      .withName(
+        KebabCaseString.getBuilder().withValue('basic-observability').build(),
+      )
+      .withVersion(
+        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
+      )
+      .build(),
+  )
+  .withComponents([
     ...monitoring.components,
     ...tracing.components,
     ...logging.components,
-  ],
-});
+  ])
+  .build();

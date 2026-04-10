@@ -50,5 +50,9 @@ const credentials = ServiceAccountCredentials.getBuilder()
 
 const liveSystem = providers[providerKey]();
 
-fractal.deploy(credentials).catch(console.error);
-liveSystem.deploy(credentials).catch(console.error);
+async function main() {
+  await fractal.deploy(credentials);
+  await liveSystem.deploy(credentials);
+}
+
+main().catch(console.error);

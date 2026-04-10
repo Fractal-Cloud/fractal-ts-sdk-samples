@@ -1,7 +1,7 @@
 {
-  "name": "basic-cicd",
+  "name": "basic-observability",
   "version": "0.0.1",
-  "description": "Fractal + AWS Live System sample — CI/CD deployment with wait mode",
+  "description": "Fractal + CaaS Live System sample — basic Observability (Prometheus, Jaeger, Elastic)",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "files": [

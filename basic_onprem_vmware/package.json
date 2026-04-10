@@ -1,7 +1,7 @@
 {
-  "name": "basic-cicd",
+  "name": "basic-onprem-vmware",
   "version": "0.0.1",
-  "description": "Fractal + AWS Live System sample — CI/CD deployment with wait mode",
+  "description": "Fractal + VMware Live System sample — on-prem IaaS (Port Group, VLAN, vSphere VMs)",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "files": [
