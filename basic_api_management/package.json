@@ -1,7 +1,7 @@
 {
-  "name": "basic-cicd",
+  "name": "basic-api-management",
   "version": "0.0.1",
-  "description": "Fractal + AWS Live System sample — CI/CD deployment with wait mode",
+  "description": "Fractal + Live System sample — basic API Management (CloudFront, Azure API Management, GCP API Gateway)",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "files": [
