@@ -64,6 +64,13 @@ const liveSystem = providers[providerKey]();
 async function main() {
   await fractal.deploy(credentials);
   await liveSystem.deploy(credentials);
+  if (process.env['FRACTAL_RESULT_PATH']) {
+    const {writeFileSync} = await import('fs');
+    writeFileSync(
+      process.env['FRACTAL_RESULT_PATH']!,
+      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) + '\n',
+    );
+  }
 }
 
 main().catch(console.error);

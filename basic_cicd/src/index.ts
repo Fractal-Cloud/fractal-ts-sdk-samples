@@ -61,6 +61,13 @@ async function main() {
   console.log('Deploying Live System...');
   const liveSystem = getLiveSystem();
   await liveSystem.deploy(credentials, deployOptions);
+  if (process.env['FRACTAL_RESULT_PATH']) {
+    const {writeFileSync} = await import('fs');
+    writeFileSync(
+      process.env['FRACTAL_RESULT_PATH']!,
+      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) + '\n',
+    );
+  }
   console.log('Live System is Active. Infrastructure provisioned successfully.');
 }
 
