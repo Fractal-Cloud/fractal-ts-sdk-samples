@@ -32,7 +32,7 @@ import {
 export const bcId = BoundedContext.Id.getBuilder()
   .withOwnerType(OwnerType.Personal)
   .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue('wizard').build())
+  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'wizard').build())
   .build();
 
 // ── Children ───────────────────────────────────────────────────────────────────

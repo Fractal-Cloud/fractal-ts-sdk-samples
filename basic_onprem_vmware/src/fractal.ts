@@ -30,7 +30,7 @@ import {
 export const bcId = BoundedContext.Id.getBuilder()
   .withOwnerType(OwnerType.Organizational)
   .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue('test-rg').build())
+  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'test-rg').build())
   .build();
 
 // ── VMs (declared before the network so links can reference their IDs) ─────────
