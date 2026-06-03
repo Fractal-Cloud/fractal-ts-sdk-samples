@@ -28,9 +28,13 @@ import {
 // ── Bounded Context ────────────────────────────────────────────────────────────
 
 export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Organizational)
+  .withOwnerType(OwnerType.Personal)
   .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'test-rg').build())
+  .withName(
+    KebabCaseString.getBuilder()
+      .withValue(process.env['BC_NAME'] ?? 'test-rg')
+      .build(),
+  )
   .build();
 
 // ── VMs (declared before the network so links can reference their IDs) ─────────
@@ -74,9 +78,7 @@ export const fractal = Fractal.getBuilder()
     Fractal.Id.getBuilder()
       .withBoundedContextId(bcId)
       .withName(
-        KebabCaseString.getBuilder()
-          .withValue('basic-onprem-vmware')
-          .build(),
+        KebabCaseString.getBuilder().withValue('basic-onprem-vmware').build(),
       )
       .withVersion(
         Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),

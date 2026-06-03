@@ -48,9 +48,7 @@ export function getLiveSystem(): LiveSystem {
   // ── Network Policy ────────────────────────────────────────────────────────────
   // Ingress rules are carried from the blueprint automatically.
 
-  const networkPolicy = OpenshiftSecurityGroup.satisfy(
-    bp('app-network-policy'),
-  )
+  const networkPolicy = OpenshiftSecurityGroup.satisfy(bp('app-network-policy'))
     .withName('app-network-policy')
     .withPolicyType('Ingress')
     .withPodSelector('app=web')
@@ -142,7 +140,7 @@ export function getLiveSystem(): LiveSystem {
       Environment.getBuilder()
         .withId(
           Environment.Id.getBuilder()
-            .withOwnerType(OwnerType.Organizational)
+            .withOwnerType(OwnerType.Personal)
             .withOwnerId(
               OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build(),
             )
