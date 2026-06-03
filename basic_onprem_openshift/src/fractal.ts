@@ -37,9 +37,13 @@ import {
 // ── Bounded Context ────────────────────────────────────────────────────────────
 
 export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Organizational)
+  .withOwnerType(OwnerType.Personal)
   .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'test-rg').build())
+  .withName(
+    KebabCaseString.getBuilder()
+      .withValue(process.env['BC_NAME'] ?? 'test-rg')
+      .build(),
+  )
   .build();
 
 // ── Security Group (NetworkPolicy) ─────────────────────────────────────────────

@@ -45,8 +45,7 @@ export function getLiveSystem(): LiveSystem {
   const dvSwitchName = process.env['VSPHERE_DV_SWITCH'] ?? 'dvs-main';
   const cluster = process.env['VSPHERE_CLUSTER'] ?? 'cluster1';
   const datastore = process.env['VSPHERE_DATASTORE'] ?? 'datastore1';
-  const template =
-    process.env['VSPHERE_TEMPLATE'] ?? 'ubuntu-22.04-template';
+  const template = process.env['VSPHERE_TEMPLATE'] ?? 'ubuntu-22.04-template';
 
   // ── Network ──────────────────────────────────────────────────────────────────
 
@@ -112,9 +111,7 @@ export function getLiveSystem(): LiveSystem {
       LiveSystem.Id.getBuilder()
         .withBoundedContextId(bcId)
         .withName(
-          KebabCaseString.getBuilder()
-            .withValue('basic-onprem-vmware')
-            .build(),
+          KebabCaseString.getBuilder().withValue('basic-onprem-vmware').build(),
         )
         .build(),
     )
@@ -127,7 +124,7 @@ export function getLiveSystem(): LiveSystem {
       Environment.getBuilder()
         .withId(
           Environment.Id.getBuilder()
-            .withOwnerType(OwnerType.Organizational)
+            .withOwnerType(OwnerType.Personal)
             .withOwnerId(
               OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build(),
             )

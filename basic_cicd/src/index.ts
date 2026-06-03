@@ -21,8 +21,8 @@
  *   DEPLOY_TIMEOUT_MS       – max ms to wait for Active status (default: 600000 = 10 min)
  *   DEPLOY_POLL_INTERVAL_MS – polling interval in ms (default: 5000 = 5 s)
  *   AWS_AVAILABILITY_ZONE   – EC2 subnet AZ (default: "eu-central-1a")
- *   EC2_AMI_ID              – EC2 AMI ID (default: "ami-0970102fe1454052a")
- *   EC2_INSTANCE_TYPE       – EC2 instance type (default: "t3.micro" / "t3.small")
+ *   EC2_AMI_ID              – EC2 AMI ID (default: "ami-0970102fe1454052a", arm64/Graviton)
+ *   EC2_INSTANCE_TYPE       – EC2 instance type (default: "t4g.micro" / "t4g.small"; arm64 to match the default AMI's architecture)
  *   EC2_KEY_NAME            – (optional) EC2 key pair name for SSH; omit to launch without a key pair
  */
 
@@ -65,10 +65,13 @@ async function main() {
     const {writeFileSync} = await import('fs');
     writeFileSync(
       process.env['FRACTAL_RESULT_PATH']!,
-      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) + '\n',
+      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) +
+        '\n',
     );
   }
-  console.log('Live System is Active. Infrastructure provisioned successfully.');
+  console.log(
+    'Live System is Active. Infrastructure provisioned successfully.',
+  );
 }
 
 main().catch(err => {

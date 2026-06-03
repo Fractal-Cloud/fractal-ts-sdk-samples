@@ -40,23 +40,27 @@ export function getLiveSystem(): LiveSystem {
     .build();
 
   const awsSubnet = AwsSubnet.satisfy(bp('public-subnet'))
-    .withAvailabilityZone(process.env['AWS_AVAILABILITY_ZONE'] ?? 'eu-central-1a')
+    .withAvailabilityZone(
+      process.env['AWS_AVAILABILITY_ZONE'] ?? 'eu-central-1a',
+    )
     .build();
 
   const awsSecurityGroup = AwsSecurityGroup.satisfy(bp('web-sg')).build();
 
   const webBuilder = Ec2Instance.satisfy(bp('web-server'))
     .withAmiId(process.env['EC2_AMI_ID'] ?? 'ami-0970102fe1454052a')
-    .withInstanceType(process.env['EC2_INSTANCE_TYPE'] ?? 't3.micro')
+    .withInstanceType(process.env['EC2_INSTANCE_TYPE'] ?? 't4g.micro')
     .withAssociatePublicIp(true);
-  if (process.env['EC2_KEY_NAME']) webBuilder.withKeyName(process.env['EC2_KEY_NAME']);
+  if (process.env['EC2_KEY_NAME'])
+    webBuilder.withKeyName(process.env['EC2_KEY_NAME']);
   const ec2WebServer = webBuilder.build();
 
   const apiBuilder = Ec2Instance.satisfy(bp('api-server'))
     .withAmiId(process.env['EC2_AMI_ID'] ?? 'ami-0970102fe1454052a')
-    .withInstanceType(process.env['EC2_INSTANCE_TYPE'] ?? 't3.small')
+    .withInstanceType(process.env['EC2_INSTANCE_TYPE'] ?? 't4g.small')
     .withAssociatePublicIp(false);
-  if (process.env['EC2_KEY_NAME']) apiBuilder.withKeyName(process.env['EC2_KEY_NAME']);
+  if (process.env['EC2_KEY_NAME'])
+    apiBuilder.withKeyName(process.env['EC2_KEY_NAME']);
   const ec2ApiServer = apiBuilder.build();
 
   // ── Live System ────────────────────────────────────────────────────────────────
