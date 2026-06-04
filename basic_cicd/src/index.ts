@@ -18,6 +18,10 @@
  *
  * Optional environment variables:
  *   ENVIRONMENT_NAME        – kebab-case environment name (default: "dev")
+ *   DEPLOY_MODE             – "wait" (default) blocks until Active; "fire-and-forget"
+ *                             submits and returns immediately. CI/CD pipelines want
+ *                             "wait"; orchestrators that own verification themselves
+ *                             (e.g. Evergreen) set "fire-and-forget".
  *   DEPLOY_TIMEOUT_MS       – max ms to wait for Active status (default: 600000 = 10 min)
  *   DEPLOY_POLL_INTERVAL_MS – polling interval in ms (default: 5000 = 5 s)
  *   AWS_AVAILABILITY_ZONE   – EC2 subnet AZ (default: "eu-central-1a")
@@ -47,11 +51,14 @@ const pollIntervalMs = process.env['DEPLOY_POLL_INTERVAL_MS']
   ? parseInt(process.env['DEPLOY_POLL_INTERVAL_MS'], 10)
   : 5_000;
 
+const mode =
+  process.env['DEPLOY_MODE'] === 'fire-and-forget' ? 'fire-and-forget' : 'wait';
+
 const deployOptions = {
-  mode: 'wait' as const,
+  mode,
   timeoutMs,
   pollIntervalMs,
-};
+} as const;
 
 async function main() {
   console.log('Registering Fractal blueprint...');
