@@ -1,101 +1,102 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Defines a cloud-agnostic Fractal (blueprint) with four IaaS components:
- *   - VirtualNetwork  (a VPC)
- *   - Subnet          (depends on the VirtualNetwork)
- *   - SecurityGroup   (depends on the VirtualNetwork)
- *   - VirtualMachine  (depends on the Subnet)
+ * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
+ * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .SecurityGroup,
+ * .VirtualMachine). It NEVER names a vendor or an offer — those are chosen later,
+ * per component, when a LiveSystem is built (see index.ts). Add a new vendor to
+ * the catalogue tomorrow and this Fractal supports it unchanged.
  *
- * This blueprint is identical in structure to the basic_iaas sample.
- * The difference is in how it gets deployed — see index.ts for the
- * CI/CD wait mode that blocks until infrastructure is fully Active.
+ * Two kinds of specialization can live in a Fractal:
+ *   - GUARDRAILS — the architect calls a component `.withXxx()` at design time.
+ *     The value is LOCKED: a consuming dev cannot override it. These are
+ *     infra/network PARAMETERS (cidrBlock, ingressRules, ...).
+ *   - OPERATIONS — the typed Interface a consuming dev uses. These are
+ *     APPLICATION-level verbs (what the app decides — its routes, its schemas),
+ *     NOT pass-through setters for infra knobs.
  *
- * Dependencies are auto-wired by the node hierarchy — no string IDs needed.
- * No AWS-specific details appear here.
+ * This sample is a pure IaaS network/CI-CD scaffold: there is no application
+ * layer making domain choices, so there are NO operations — the `operations`
+ * key is deliberately omitted. Everything here is a locked guardrail. Vendor-only
+ * knobs (amiId, instanceType, ...) are NOT here; they are offer config selected
+ * in index.ts.
+ *
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
-
 import {
-  BoundedContext,
-  Fractal,
-  KebabCaseString,
-  OwnerId,
-  OwnerType,
+  createFractal,
   VirtualNetwork,
   Subnet,
   SecurityGroup,
   VirtualMachine,
-  Version,
-} from '@fractal_cloud/sdk';
+} from '@fractal_cloud/sdk/model';
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'wizard',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'wizard').build())
-  .build();
+/**
+ * Author the "basic CI/CD" Fractal. Returns a reusable, immutable Fractal:
+ * `.specialize()` never mutates it, so it is safe to author once and instantiate
+ * many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-cicd',
+    version: {major: 1, minor: 0, patch: 0},
+    description:
+      'Basic IaaS scaffold for a CI/CD pipeline: a VPC, a public subnet, a ' +
+      'web security group, and two VMs (web + API).',
+    boundedContextId,
+    blueprint: bp => {
+      // ── Network — the VPC's address space is a governed guardrail. ──
+      const network = bp.add(
+        VirtualNetwork({id: 'main-network'}).withCidrBlock('10.0.0.0/16'),
+      );
 
-// ── Blueprint ──────────────────────────────────────────────────────────────────
+      // ── Public subnet — carved from the VPC; cannot exist without it. ──
+      const subnet = bp.add(
+        Subnet({id: 'public-subnet'})
+          .withCidrBlock('10.0.1.0/24') // guardrail: subnet range
+          .dependsOn(network), // structural dependency: subnet → VPC
+      );
 
-// ── VMs (declared before the network so links can reference their IDs) ─────────
+      // ── Web security group — ingress posture is governed. The SG belongs to
+      //    the VPC, so it depends on it. SSH (22) for ops + HTTP (80) for the
+      //    web tier are the only inbound rules permitted. ──
+      const webSg = bp.add(
+        SecurityGroup({id: 'web-sg'})
+          .dependsOn(network)
+          .withIngressRules([
+            {fromPort: 22, toPort: 22, sourceCidr: '0.0.0.0/0'},
+            {fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'},
+          ]),
+      );
 
-const apiServer = VirtualMachine.create({
-  id: 'api-server',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'API Server',
-  description: 'Backend API server — listens on port 8080',
-});
+      // ── Compute — both VMs live in the public subnet. ──
+      const apiServer = bp.add(
+        VirtualMachine({id: 'api-server'}).dependsOn(subnet),
+      );
+      const webServer = bp.add(
+        VirtualMachine({id: 'web-server'}).dependsOn(subnet),
+      );
 
-const webServer = VirtualMachine.create({
-  id: 'web-server',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Web Server',
-  description: 'Frontend web server — proxies to the API server on port 8080',
-}).linkToVirtualMachine([{target: apiServer, fromPort: 8080}]);
+      // ── Link: web-server → api-server on TCP 8080. The blueprint owns all
+      //    links. This is a traffic rule (carries {fromPort, toPort, protocol}),
+      //    so the agent derives the matching managed-SG egress/ingress rules
+      //    that let the web tier reach the API tier on 8080. ──
+      bp.link(webServer, apiServer, {
+        fromPort: 8080,
+        toPort: 8080,
+        protocol: 'tcp',
+      });
 
-// ── Network (components order: [vpc, subnet, securityGroup, ...vms]) ──────────
-
-const network = VirtualNetwork.create({
-  id: 'main-network',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Main VPC',
-  description: 'Primary VPC for the CI/CD IaaS workload',
-  cidrBlock: '10.1.0.0/16',
-})
-  .withSubnets([
-    Subnet.create({
-      id: 'public-subnet',
-      version: {major: 1, minor: 0, patch: 0},
-      displayName: 'Public Subnet',
-      description: 'Public-facing subnet inside the main VPC',
-      cidrBlock: '10.1.1.0/24',
-    }).withVirtualMachines([webServer, apiServer]),
-  ])
-  .withSecurityGroups([
-    SecurityGroup.create({
-      id: 'web-sg',
-      version: {major: 1, minor: 0, patch: 0},
-      displayName: 'Web Security Group',
-      description: 'Allows inbound SSH and HTTP traffic',
-      ingressRules: [
-        {protocol: 'tcp', fromPort: 22, toPort: 22, sourceCidr: '0.0.0.0/0'},
-        {protocol: 'tcp', fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'},
-      ],
-    }),
-  ]);
-
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder().withValue('basic-cicd-fractal').build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([...network.components])
-  .build();
+      return {network, subnet, webSg, apiServer, webServer};
+    },
+    // No `operations`: this AWS-only IaaS/CI-CD sample has no application-level
+    // verbs. All specialization above is architect guardrails; vendor knobs are
+    // offer config chosen at selection time (index.ts).
+  });
+}

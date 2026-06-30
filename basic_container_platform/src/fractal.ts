@@ -1,143 +1,127 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Defines a cloud-agnostic Fractal (blueprint) for a two-tier container workload:
+ * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
+ * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .SecurityGroup,
+ * .ContainerPlatform and CustomWorkloads.Workload). It NEVER names a vendor or
+ * an offer — those are chosen later, per component, when a LiveSystem is built
+ * (see index.ts). Add a new vendor to the catalogue tomorrow and this Fractal
+ * supports it unchanged.
  *
- *   ContainerPlatform (app-cluster)
- *     └── web-workload  — cluster dep auto-wired
- *     └── api-workload  — cluster dep auto-wired
+ * Two kinds of specialization live here:
+ *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
+ *     LOCKED: a consuming dev cannot override it. These are infra PARAMETERS
+ *     (CIDR blocks, ingress rules, node pools / autoscaling).
+ *   - OPERATIONS — the typed Interface a consuming dev uses. These are
+ *     APPLICATION-level verbs (what the app decides — which container image it
+ *     ships and how many replicas it wants), NOT pass-through setters for infra
+ *     knobs. Operations carry the app's intent into neutral params.
  *
- *   VirtualNetwork (main-network)
- *     └── SecurityGroup — inbound: TCP 80 (public), TCP 8080 (internal)
- *     └── Subnet        — private subnet
- *         └── web-workload — subnet dep stacked on cluster dep
- *         └── api-workload — subnet dep stacked on cluster dep
+ * STRUCTURE (deps + links) is owned entirely by the blueprint:
+ *   - Subnet/SecurityGroup depend on the VirtualNetwork.
+ *   - ContainerPlatform depends on the Subnet; each Workload depends on the
+ *     cluster AND the subnet.
+ *   - Links: each workload is a member of the app SecurityGroup; the web tier
+ *     links to the api tier with a traffic rule on port 8080.
  *
- * Network rules:
- *   web-workload → api-workload on port 8080 (agent derives SG egress/ingress)
- *   Both workloads link to the shared security group for membership
- *
- * No cloud-provider details appear here — the blueprint can be satisfied
- * by any cloud provider that supports container workloads (ECS, EKS, etc.).
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
-
 import {
-  BoundedContext,
-  ContainerPlatform,
-  Fractal,
-  KebabCaseString,
-  OwnerId,
-  OwnerType,
-  SecurityGroup,
-  Subnet,
-  Version,
+  createFractal,
   VirtualNetwork,
+  Subnet,
+  SecurityGroup,
+  ContainerPlatform,
   Workload,
-} from '@fractal_cloud/sdk';
+} from '@fractal_cloud/sdk/model';
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'wizard',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'wizard').build())
-  .build();
+/**
+ * Author the "governed container platform" Fractal. Returns a reusable,
+ * immutable Fractal: `.specialize()` never mutates it, so it is safe to author
+ * once and instantiate many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-container-platform',
+    version: {major: 1, minor: 0, patch: 0},
+    description:
+      'Governed container platform: a network, a managed cluster, and a ' +
+      'web + api workload pair.',
+    boundedContextId,
+    blueprint: bp => {
+      // ── Network topology — CIDR blocks are governed. ──
+      const network = bp.add(
+        VirtualNetwork({id: 'main-network'}).withCidrBlock('10.0.0.0/16'), // guardrail
+      );
+      const subnet = bp.add(
+        Subnet({id: 'private-subnet'})
+          .withCidrBlock('10.0.1.0/24') // guardrail
+          .dependsOn(network),
+      );
 
-// ── Security Group ─────────────────────────────────────────────────────────────
+      // ── Security posture — the ingress rules are governed: HTTP from anywhere
+      //    to the web tier, internal-only traffic on 8080 to the api tier. ──
+      const sg = bp.add(
+        SecurityGroup({id: 'app-sg'})
+          .dependsOn(network)
+          .withIngressRules([
+            {fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'}, // guardrail
+            {fromPort: 8080, toPort: 8080, sourceCidr: '10.0.0.0/16'}, // guardrail
+          ]),
+      );
 
-const appSg = SecurityGroup.create({
-  id: 'app-sg',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Application Security Group',
-  description: 'Allows public HTTP on 80 and internal API traffic on 8080',
-  ingressRules: [
-    {protocol: 'tcp', fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'},
-    {
-      protocol: 'tcp',
-      fromPort: 8080,
-      toPort: 8080,
-      sourceCidr: '10.2.0.0/16',
+      // ── Managed cluster — node pool topology + autoscaling are governed. ──
+      const cluster = bp.add(
+        ContainerPlatform({id: 'app-cluster'})
+          .dependsOn(subnet)
+          .withNodePools([
+            {
+              name: 'system',
+              minNodeCount: 1,
+              maxNodeCount: 3,
+              autoscalingEnabled: true,
+            }, // guardrail: cluster capacity is an infra decision
+          ]),
+      );
+
+      // ── Workloads — the api and web tiers. Each depends on the cluster (where
+      //    it runs) and the subnet (where it is placed). The container image and
+      //    replica count are NOT set here: they are application choices, exposed
+      //    as operations below. ──
+      const api = bp.add(
+        Workload({id: 'api-workload'}).dependsOn(cluster).dependsOn(subnet),
+      );
+      const web = bp.add(
+        Workload({id: 'web-workload'}).dependsOn(cluster).dependsOn(subnet),
+      );
+
+      // ── Links (structure) — membership + traffic rules, architect-owned. ──
+      bp.link(api, sg); // api is a member of the app security group
+      bp.link(web, sg); // web is a member of the app security group
+      bp.link(web, api, {fromPort: 8080, toPort: 8080, protocol: 'tcp'}); // web → api
+
+      return {network, subnet, sg, cluster, api, web};
     },
-  ],
-});
 
-// ── Workloads ─────────────────────────────────────────────────────────────────
-
-const apiWorkload = Workload.create({
-  id: 'api-workload',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'API Workload',
-  description: 'Backend API — listens on port 8080',
-  containerImage: 'public.ecr.aws/amazonlinux/amazonlinux:latest',
-  containerPort: 8080,
-  cpu: '512',
-  memory: '1024',
-  desiredCount: 2,
-}).linkToSecurityGroup([appSg]);
-
-const webWorkload = Workload.create({
-  id: 'web-workload',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Web Workload',
-  description: 'Nginx frontend — serves on port 80, proxies to API on 8080',
-  containerImage: 'nginx:alpine',
-  containerPort: 80,
-  cpu: '256',
-  memory: '512',
-  desiredCount: 2,
-})
-  .linkToWorkload([{target: apiWorkload, fromPort: 8080, protocol: 'tcp'}])
-  .linkToSecurityGroup([appSg]);
-
-// ── Container Platform (cluster dep auto-wired into each workload) ─────────────
-
-const containerPlatform = ContainerPlatform.create({
-  id: 'app-cluster',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Application Cluster',
-  description: 'Container platform hosting the web and API workloads',
-}).withWorkloads([webWorkload, apiWorkload]);
-
-// ── Network (subnet dep stacked on cluster dep via withWorkloads) ──────────────
-
-const network = VirtualNetwork.create({
-  id: 'main-network',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Main Network',
-  description: 'Primary network for the container workload',
-  cidrBlock: '10.2.0.0/16',
-})
-  .withSubnets([
-    Subnet.create({
-      id: 'private-subnet',
-      version: {major: 1, minor: 0, patch: 0},
-      displayName: 'Private Subnet',
-      description: 'Private subnet — containers run here with no public IPs',
-      cidrBlock: '10.2.1.0/24',
-    }).withWorkloads(containerPlatform.workloads),
-  ])
-  .withSecurityGroups([appSg]);
-
-// ── Fractal ────────────────────────────────────────────────────────────────────
-
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder()
-          .withValue('basic-container-platform')
-          .build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([
-    // Container platform (standalone, region-level — no VPC dep)
-    containerPlatform.platform,
-    // Network hierarchy: VPC, subnet, SG, and workloads (cluster + subnet deps)
-    ...network.components,
-  ])
-  .build();
+    // ── OPERATIONS — application-level verbs only. What the APP decides: which
+    //    container image each tier ships and how many replicas it wants. These
+    //    are deployment choices the app owns, NOT infra knobs (which stay
+    //    architect guardrails or offer config). ──
+    operations: s => ({
+      /** The container image the web tier ships. */
+      withWebImage: (image: string) => s.web.set('image', image),
+      /** How many replicas of the web tier to run. */
+      withWebReplicas: (replicas: number) => s.web.set('replicas', replicas),
+      /** The container image the api tier ships. */
+      withApiImage: (image: string) => s.api.set('image', image),
+      /** How many replicas of the api tier to run. */
+      withApiReplicas: (replicas: number) => s.api.set('replicas', replicas),
+    }),
+  });
+}

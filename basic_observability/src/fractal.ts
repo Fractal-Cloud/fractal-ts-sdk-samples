@@ -1,67 +1,75 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Cloud-agnostic blueprint for a basic observability stack.
- * Declares three components: Monitoring, Tracing, and Logging.
+ * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
+ * Components (Observability.Monitoring, Observability.Tracing,
+ * Observability.Logging). It NEVER names a vendor or an offer — those are chosen
+ * later, per component, when a LiveSystem is built (see index.ts).
+ *
+ * Two kinds of specialization can live here:
+ *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
+ *     LOCKED: a consuming dev cannot override it. These are infra PARAMETERS
+ *     (retention, scrape interval, sampling rate).
+ *   - OPERATIONS — the typed Interface a consuming dev uses. These are
+ *     APPLICATION-level verbs (what the app decides — its dashboards, its log
+ *     streams), NOT pass-through setters for infra parameters.
+ *
+ * This is a pure PLATFORM-observability stack: the architect governs retention
+ * and sampling, and there are no application-level verbs to expose. So this
+ * Fractal declares guardrails only and OMITS `operations` entirely.
+ *
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
-
 import {
-  BoundedContext,
-  Fractal,
-  KebabCaseString,
-  Logging,
+  createFractal,
   Monitoring,
-  OwnerId,
-  OwnerType,
   Tracing,
-  Version,
-} from '@fractal_cloud/sdk';
+  Logging,
+} from '@fractal_cloud/sdk/model';
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'wizard',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'wizard').build())
-  .build();
+/**
+ * Author the "governed observability" Fractal. Returns a reusable, immutable
+ * Fractal: `.specialize()` never mutates it, so it is safe to author once and
+ * instantiate many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-observability',
+    version: {major: 1, minor: 0, patch: 0},
+    description:
+      'Governed observability: metrics monitoring + distributed tracing + logging.',
+    boundedContextId,
+    blueprint: bp => {
+      // ── Monitoring — retention and scrape cadence are governed. ──
+      const monitoring = bp.add(
+        Monitoring({id: 'monitoring'})
+          .withRetentionDays(30) // guardrail: how long metrics are kept
+          .withScrapeInterval(15), // guardrail: scrape cadence in seconds
+      );
 
-// ── Blueprint components ─────────────────────────────────────────────────────
+      // ── Tracing — retention and sampling rate are governed. ──
+      const tracing = bp.add(
+        Tracing({id: 'tracing'})
+          .withRetentionDays(7) // guardrail: how long traces are kept
+          .withSamplingRate(0.1), // guardrail: 10% trace sampling
+      );
 
-export const monitoring = Monitoring.create({
-  id: 'monitoring',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Monitoring',
-});
+      // ── Logging — retention is governed. ──
+      const logging = bp.add(
+        Logging({id: 'logging'}).withRetentionDays(30), // guardrail
+      );
 
-export const tracing = Tracing.create({
-  id: 'tracing',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Tracing',
-});
+      return {monitoring, tracing, logging};
+    },
 
-export const logging = Logging.create({
-  id: 'logging',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Logging',
-});
-
-// ── Fractal ──────────────────────────────────────────────────────────────────
-
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder().withValue('basic-observability').build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([
-    ...monitoring.components,
-    ...tracing.components,
-    ...logging.components,
-  ])
-  .build();
+    // No `operations`: this is platform observability. The architect's
+    // guardrails (retention/scrape/sampling) fully govern the stack and there
+    // are no application-level verbs for a consuming dev to call.
+  });
+}

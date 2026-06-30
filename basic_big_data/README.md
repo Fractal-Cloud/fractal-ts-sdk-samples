@@ -5,35 +5,30 @@ Demonstrates a cloud-agnostic BigData workload using the Fractal Cloud TypeScrip
 ## What it provisions
 
 ```
-DistributedDataProcessing (analytics-platform) — Databricks workspace
-+-- ComputeCluster (spark-cluster)    — Spark 14.3.x, platform dep auto-wired
-+-- DataProcessingJob (etl-job)       — notebook task, platform dep auto-wired
-+-- MlExperiment (training-exp)       — MLflow experiment, platform dep auto-wired
+ComputeCluster (analytics-cluster)  — Databricks cluster (max 10 workers, 30-min auto-termination)
+DataProcessingJob (etl-job)         — Scheduled ETL job (depends on cluster)
+MlExperiment (fraud-model)          — MLflow experiment tracker
+Datalake (lake)                     — Versioned object storage (versioning enabled)
 ```
-
-All child component dependencies on the platform are auto-wired by the blueprint via `withClusters()`, `withJobs()`, and `withExperiments()`.
 
 ## Project layout
 
 ```
 src/
-  fractal.ts            # Cloud-agnostic blueprint: workspace, cluster, job, MLflow
-  aws_live_system.ts    # AWS:   Databricks on AWS (credentials, storage config)
-  azure_live_system.ts  # Azure: Databricks on Azure (managed resource group)
-  gcp_live_system.ts    # GCP:   Databricks on GCP (network ID)
-  index.ts              # Entry point — provider selected by CLOUD_PROVIDER
+  fractal.ts   # Cloud-agnostic blueprint: cluster, job, MLflow, datalake; guardrails locked
+  index.ts     # Offer-selection entry point — CLOUD_PROVIDER dispatch (aws | azure | gcp)
 ```
 
-### Blueprint / Live System split
+### Blueprint / offer-config split
 
 | Concern | Declared in |
 |---------|-------------|
-| Cluster name, Spark version, job name, task type, notebook path, experiment name | `fractal.ts` — blueprint params |
-| Platform → child dependencies | `fractal.ts` — auto-wired |
-| Pricing tier, node type ID, artifact location | `*_live_system.ts` — vendor-specific |
-| AWS credentials ID, storage configuration ID | `aws_live_system.ts` |
-| Azure managed resource group, no-public-IP flag | `azure_live_system.ts` |
-| GCP network ID | `gcp_live_system.ts` |
+| Cluster max workers, auto-termination timeout | `fractal.ts` — guardrail |
+| ETL job retry policy | `fractal.ts` — guardrail |
+| Datalake object versioning | `fractal.ts` — guardrail |
+| Cluster → job dependency | `fractal.ts` — structural |
+| Cluster name, job schedule, experiment display name | `fractal.ts` — operations (app-level, not locked) |
+| Vendor-specific offer config (bucket name, resource group, etc.) | `index.ts` — offer config |
 
 ## Selecting a provider
 
@@ -42,6 +37,8 @@ Set `CLOUD_PROVIDER` to one of: `aws` (default) · `azure` · `gcp`
 ```bash
 CLOUD_PROVIDER=azure node build/src/index.js
 ```
+
+`index.ts` reads `CLOUD_PROVIDER`, calls `selectionFor(provider)`, and maps each component ID to a concrete vendor offer. The Fractal is never touched when the provider changes.
 
 ## Environment variables
 
@@ -52,28 +49,14 @@ CLOUD_PROVIDER=azure node build/src/index.js
 | `SERVICE_ACCOUNT_ID` | yes | Fractal Cloud service account ID |
 | `SERVICE_ACCOUNT_SECRET` | yes | Fractal Cloud service account secret |
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
-| `ENVIRONMENT_NAME` | no | kebab-case environment name (default: `dev`) |
+| `ENVIRONMENT_NAME` | no | Kebab-case environment name (default: `dev`) |
+| `BC_NAME` | no | Bounded-context name (default: `wizard`) |
 
-### AWS (`CLOUD_PROVIDER=aws`)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `AWS_DATABRICKS_CREDENTIALS_ID` | no | `my-credentials` | Databricks credentials ID |
-| `AWS_DATABRICKS_STORAGE_CONFIGURATION_ID` | no | `my-storage-config` | Databricks storage configuration ID |
-| `AWS_DATABRICKS_NETWORK_ID` | no | _(none)_ | Databricks network ID |
-
-### Azure (`CLOUD_PROVIDER=azure`)
+### Provider selection
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `AZURE_MANAGED_RESOURCE_GROUP` | no | `my-managed-rg` | Managed resource group name |
-| `AZURE_ENABLE_NO_PUBLIC_IP` | no | `false` | Set to `true` to enable no public IP |
-
-### GCP (`CLOUD_PROVIDER=gcp`)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GCP_DATABRICKS_NETWORK_ID` | no | _(none)_ | GCP network ID for Databricks |
+| `CLOUD_PROVIDER` | no | `aws` | Target provider: `aws`, `azure`, or `gcp` |
 
 ## Running
 
@@ -98,3 +81,5 @@ CLOUD_PROVIDER=azure node build/src/index.js
 # GCP
 CLOUD_PROVIDER=gcp node build/src/index.js
 ```
+
+The deploy runs in `wait` mode: structured log lines (`INFO` / `CHECK` / `ERROR`) stream to stdout until the Live System reaches Active or fails.

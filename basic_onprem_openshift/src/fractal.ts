@@ -1,149 +1,98 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Defines a cloud-agnostic Fractal (blueprint) for an OpenShift workload
- * showcasing all available OpenShift component types:
+ * This is a vendor-AGNOSTIC Fractal for an on-prem application: a network policy
+ * (SecurityGroup), an API and a web Workload, a public service (LoadBalancer),
+ * persistent storage (ObjectStorage), and a legacy VirtualMachine. The blueprint
+ * references only abstract Components — it NEVER names a vendor or an offer. The
+ * OpenShift (RedHat) offers are chosen later, per component, when a LiveSystem is
+ * built (see index.ts). Add a new vendor to the catalogue tomorrow and this
+ * Fractal supports it unchanged.
  *
- *   SecurityGroup (app-network-policy)
- *     — ingress rules: TCP 80 (public), TCP 8080 (internal)
+ * Two kinds of specialization live here:
+ *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
+ *     LOCKED: a consuming dev cannot override it. These are infra PARAMETERS
+ *     (here: the network policy's ingress rules).
+ *   - OPERATIONS — the typed Interface a consuming dev uses. These are
+ *     APPLICATION-level verbs (the image each workload runs, how many replicas),
+ *     NOT pass-through setters for infra/engine knobs.
  *
- *   Workload (api-workload) — backend API, linked to SG
- *   Workload (web-workload) — nginx frontend, linked to SG + traffic rule to API
+ * STRUCTURE is owned entirely by the blueprint:
+ *   - links express runtime relationships. Both workloads are MEMBERS of the
+ *     network policy (membership link — no settings). The web workload may reach
+ *     the API workload on 8080 (traffic link — {fromPort, toPort, protocol}); the
+ *     agent derives the NetworkPolicy rule from this link.
  *
- *   LoadBalancer (web-service) — exposes the web frontend
- *
- *   FilesAndBlobs (app-storage) — persistent volume for application data
- *
- *   VirtualMachine (legacy-vm) — VM via OpenShift Virtualization
- *
- * No OpenShift-specific details appear here — the blueprint can be satisfied
- * by any provider that supports these component types.
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
-
 import {
-  BoundedContext,
-  FilesAndBlobs,
-  Fractal,
-  KebabCaseString,
+  createFractal,
   LoadBalancer,
-  OwnerId,
-  OwnerType,
+  ObjectStorage,
   SecurityGroup,
-  Version,
   VirtualMachine,
   Workload,
-} from '@fractal_cloud/sdk';
+} from '@fractal_cloud/sdk/model';
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'test-rg',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(
-    KebabCaseString.getBuilder()
-      .withValue(process.env['BC_NAME'] ?? 'test-rg')
-      .build(),
-  )
-  .build();
+/**
+ * Author the "on-prem application" Fractal. Returns a reusable, immutable
+ * Fractal: `.specialize()` never mutates it, so it is safe to author once and
+ * instantiate many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-onprem-openshift',
+    version: {major: 1, minor: 0, patch: 0},
+    description:
+      'On-prem application: a network policy, API + web workloads, a public ' +
+      'service, persistent storage, and a legacy VM.',
+    boundedContextId,
+    blueprint: bp => {
+      // ── Network policy — the architect governs its ingress posture. ──
+      //    Allow HTTP from anywhere and the API port from the cluster pod CIDR.
+      const sg = bp.add(
+        SecurityGroup({id: 'app-network-policy'}).withIngressRules([
+          {fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'}, // guardrail
+          {fromPort: 8080, toPort: 8080, sourceCidr: '10.128.0.0/14'}, // guardrail
+        ]),
+      );
 
-// ── Security Group (NetworkPolicy) ─────────────────────────────────────────────
+      // ── Workloads — the app declares image/replicas via operations below. ──
+      const api = bp.add(Workload({id: 'api-workload'}));
+      const web = bp.add(Workload({id: 'web-workload'}));
 
-const appNetworkPolicy = SecurityGroup.create({
-  id: 'app-network-policy',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Application Network Policy',
-  description:
-    'Controls pod-to-pod traffic — allows HTTP on 80 and API on 8080',
-  ingressRules: [
-    {protocol: 'tcp', fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'},
-    {
-      protocol: 'tcp',
-      fromPort: 8080,
-      toPort: 8080,
-      sourceCidr: '10.128.0.0/14',
+      // ── Public service + persistent storage + legacy VM. ──
+      const lb = bp.add(LoadBalancer({id: 'web-service'}));
+      const storage = bp.add(ObjectStorage({id: 'app-storage'}));
+      const vm = bp.add(VirtualMachine({id: 'legacy-vm'}));
+
+      // ── Links (runtime relationships) — blueprint owns ALL structure. ──
+      // Both workloads are members of the network policy (membership: no settings).
+      bp.link(api, sg);
+      bp.link(web, sg);
+      // The web workload may reach the API workload on 8080 (traffic rule).
+      bp.link(web, api, {fromPort: 8080, toPort: 8080, protocol: 'tcp'});
+
+      return {sg, api, web, lb, storage, vm};
     },
-  ],
-});
 
-// ── Workloads ──────────────────────────────────────────────────────────────────
-
-const apiWorkload = Workload.create({
-  id: 'api-workload',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'API Workload',
-  description: 'Backend API — listens on port 8080',
-  containerImage: 'registry.redhat.io/ubi9/httpd-24:latest',
-  containerPort: 8080,
-  cpu: '500',
-  memory: '1024',
-  desiredCount: 2,
-}).linkToSecurityGroup([appNetworkPolicy]);
-
-const webWorkload = Workload.create({
-  id: 'web-workload',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Web Workload',
-  description: 'Nginx frontend — serves on port 80, proxies to API on 8080',
-  containerImage: 'nginx:alpine',
-  containerPort: 80,
-  cpu: '250',
-  memory: '512',
-  desiredCount: 2,
-})
-  .linkToWorkload([{target: apiWorkload, fromPort: 8080, protocol: 'tcp'}])
-  .linkToSecurityGroup([appNetworkPolicy]);
-
-// ── Load Balancer (OpenShift Service + Route) ──────────────────────────────────
-
-const webService = LoadBalancer.create({
-  id: 'web-service',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Web Service',
-  description:
-    'OpenShift Service and Route exposing the web frontend externally',
-});
-
-// ── Storage (Persistent Volume) ────────────────────────────────────────────────
-
-export const appStorage = FilesAndBlobs.create({
-  id: 'app-storage',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Application Storage',
-  description: 'Persistent volume for application data and uploads',
-});
-
-// ── Virtual Machine (OpenShift Virtualization) ─────────────────────────────────
-
-const legacyVm = VirtualMachine.create({
-  id: 'legacy-vm',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Legacy VM',
-  description:
-    'Legacy application running on OpenShift Virtualization (KubeVirt)',
-});
-
-// ── Fractal ────────────────────────────────────────────────────────────────────
-
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder()
-          .withValue('basic-onprem-openshift')
-          .build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([
-    appNetworkPolicy,
-    apiWorkload.component,
-    webWorkload.component,
-    webService.component,
-    appStorage.component,
-    legacyVm.component,
-  ])
-  .build();
+    // ── OPERATIONS — application-level verbs only. What the APP decides: the
+    //    container image each workload runs and how many replicas it wants. ──
+    operations: s => ({
+      /** The container image the API workload runs. */
+      withApiImage: (image: string) => s.api.set('image', image),
+      /** The number of API workload replicas. */
+      withApiReplicas: (replicas: number) => s.api.set('replicas', replicas),
+      /** The container image the web workload runs. */
+      withWebImage: (image: string) => s.web.set('image', image),
+      /** The number of web workload replicas. */
+      withWebReplicas: (replicas: number) => s.web.set('replicas', replicas),
+    }),
+  });
+}

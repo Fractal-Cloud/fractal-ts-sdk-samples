@@ -2,41 +2,48 @@
 
 Demonstrates a cloud-agnostic API Gateway using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS (CloudFront), Azure (API Management), or GCP (API Gateway)** — select the target provider at runtime with a single environment variable.
 
+This sample is also the clearest illustration of the **guardrails vs operations** distinction: the architect locks the gateway's security posture (HTTPS-only, rate limit, CORS allow-list) while the dev team declares application-level routes through the typed Interface.
+
 ## What it provisions
 
 ```
-PaaSApiGateway (api-gateway)
+ApiGateway (api-gateway)
 ```
 
-A single API Gateway component — simple but demonstrates the `satisfy()` pattern across three providers with very different vendor parameters.
+A single API Gateway component. The architect locks three security guardrails on it at design time: `httpsOnly`, `rateLimit`, and `cors`. The dev team appends routes via the `withRoute` operation.
 
 ## Project layout
 
 ```
 src/
-  fractal.ts            # Cloud-agnostic blueprint: API gateway
-  aws_live_system.ts    # AWS:   CloudFront
-  azure_live_system.ts  # Azure: API Management
-  gcp_live_system.ts    # GCP:   API Gateway
-  index.ts              # Entry point — provider selected by CLOUD_PROVIDER
+  fractal.ts   # Architect-authored blueprint: ApiGateway with locked guardrails + withRoute operation
+  index.ts     # Dev entry point: offer selection via CLOUD_PROVIDER, then deploy
 ```
 
-### Blueprint / Live System split
+### Blueprint / offer-selection split
 
 | Concern | Declared in |
 |---------|-------------|
 | Gateway component ID, version, display name | `fractal.ts` |
-| AWS region, API key source | `aws_live_system.ts` |
-| Azure region, publisher name/email, SKU | `azure_live_system.ts` |
-| GCP region, API ID | `gcp_live_system.ts` |
+| Locked guardrails: `httpsOnly`, `rateLimit`, `cors` | `fractal.ts` |
+| Application routes (`withRoute`) | `fractal.ts` operations / `index.ts` specialization |
+| Vendor offer config (AWS region, Azure SKU/publisher, GCP) | `index.ts` — offer config |
 
 ## Selecting a provider
 
-Set `CLOUD_PROVIDER` to one of: `aws` (default) · `azure` · `gcp`
+`index.ts` reads `CLOUD_PROVIDER` and maps it to a concrete offer for the `api-gateway` component:
+
+| `CLOUD_PROVIDER` | Offer selected | Notes |
+|-----------------|----------------|-------|
+| `aws` (default) | `AwsCloudFront` | `region: 'us-east-1'` |
+| `azure` | `AzureApiManagement` | `publisherEmail`, `sku: 'Developer'` |
+| `gcp` | `GcpApiGateway` | no extra config required |
 
 ```bash
 CLOUD_PROVIDER=azure node build/src/index.js
 ```
+
+The vendor-neutral CaaS offers `Ambassador` and `Traefik` are imported in `index.ts` as swap-in alternatives — swap one in to run the same governed Fractal on any Kubernetes cluster with no cloud provider.
 
 ## Environment variables
 
@@ -47,9 +54,16 @@ CLOUD_PROVIDER=azure node build/src/index.js
 | `SERVICE_ACCOUNT_ID` | yes | Fractal Cloud service account ID |
 | `SERVICE_ACCOUNT_SECRET` | yes | Fractal Cloud service account secret |
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
-| `ENVIRONMENT_NAME` | no | kebab-case environment name (default: `dev`) |
+| `ENVIRONMENT_NAME` | no | Kebab-case environment name (default: `dev`) |
+| `BC_NAME` | no | Bounded-context name (default: `wizard`) |
 
-No additional provider-specific environment variables are required — all vendor parameters use sensible defaults.
+### Provider selection
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `CLOUD_PROVIDER` | no | `aws` (default) · `azure` · `gcp` |
+
+No additional provider-specific environment variables are required — all vendor parameters are configured inline in the `selectionFor` function in `index.ts`.
 
 ## Running
 
@@ -74,3 +88,5 @@ CLOUD_PROVIDER=azure node build/src/index.js
 # GCP (API Gateway)
 CLOUD_PROVIDER=gcp node build/src/index.js
 ```
+
+Deploy uses `mode: 'wait'` — the process streams structured log lines (`INFO` / `CHECK` / `ERROR`) until the Live System reaches Active status or fails.

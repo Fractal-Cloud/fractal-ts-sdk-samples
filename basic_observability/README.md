@@ -1,43 +1,47 @@
 # basic_observability
 
-Demonstrates a basic observability stack using the Fractal Cloud TypeScript SDK. This sample is **CaaS-only** — it deploys Prometheus (monitoring), Jaeger (tracing), and Elastic (logging) on a Kubernetes cluster.
+Demonstrates a governed observability stack using the Fractal Cloud TypeScript SDK. This sample is **CaaS-only (self-hosted)** — the architect authors a vendor-agnostic Fractal once; the dev selects concrete self-hosted offers (Prometheus, Jaeger, Elastic) per component and deploys with no provider dispatch.
 
 ## What it provisions
 
 ```
-Monitoring (monitoring)  — Prometheus
-Tracing    (tracing)     — Jaeger with Elasticsearch storage
-Logging    (logging)     — Elastic stack (3 instances, 50Gi, Kibana enabled)
+Monitoring (monitoring)  — Prometheus         (retention: 30 days, scrape interval: 15 s)
+Tracing    (tracing)     — Jaeger             (retention: 7 days, sampling rate: 10 %)
+Logging    (logging)     — ObservabilityElastic (retention: 30 days)
 ```
 
 ## Project layout
 
 ```
 src/
-  fractal.ts            # Cloud-agnostic blueprint: monitoring, tracing, logging
-  caas_live_system.ts   # CaaS:  Prometheus + Jaeger + Elastic
-  index.ts              # Entry point — no multi-provider dispatch
+  fractal.ts   # Architect layer: vendor-agnostic blueprint — Monitoring, Tracing, Logging
+               #   Guardrails locked here: retentionDays, scrapeInterval, samplingRate.
+               #   No operations (platform observability; no app-level verbs to expose).
+  index.ts     # Dev layer: offer-selection entry point.
+               #   Selects one self-hosted CaaS offer per component
+               #   (Prometheus / Jaeger / ObservabilityElastic) in the `select` map,
+               #   then deploys. No provider switch — these offers are vendor-neutral.
 ```
 
-### Blueprint / Live System split
+### Blueprint → offer mapping
 
-| Concern | Declared in |
-|---------|-------------|
-| Component IDs, versions, display names | `fractal.ts` |
-| Prometheus namespace, API gateway URL | `caas_live_system.ts` |
-| Jaeger namespace, storage backend | `caas_live_system.ts` |
-| Elastic version, instance count, storage size, Kibana flag | `caas_live_system.ts` |
+| Blueprint component | ID | Offer selected in `index.ts` |
+|---------------------|----|-------------------------------|
+| `Monitoring` | `monitoring` | `Prometheus({})` |
+| `Tracing` | `tracing` | `Jaeger({})` |
+| `Logging` | `logging` | `ObservabilityElastic({})` |
+
+Architect guardrails (retention, scrape interval, sampling rate) are locked in `fractal.ts` and apply regardless of which cluster the CaaS offers land on. There are no dev-open operations — the stack is fully governed.
 
 ## Environment variables
-
-This sample does not use `CLOUD_PROVIDER` — it is CaaS-only.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `SERVICE_ACCOUNT_ID` | yes | Fractal Cloud service account ID |
 | `SERVICE_ACCOUNT_SECRET` | yes | Fractal Cloud service account secret |
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
-| `ENVIRONMENT_NAME` | no | kebab-case environment name (default: `dev`) |
+| `ENVIRONMENT_NAME` | no | Kebab-case environment name (default: `dev`) |
+| `BC_NAME` | no | Bounded-context name (default: `wizard`) |
 
 ## Running
 
@@ -55,3 +59,5 @@ export OWNER_ID=<uuid>
 
 node build/src/index.js
 ```
+
+The SDK deploys in `wait` mode and emits structured log lines (`INFO` / `CHECK` / `ERROR`) until the Live System reaches Active (or fails/times out).

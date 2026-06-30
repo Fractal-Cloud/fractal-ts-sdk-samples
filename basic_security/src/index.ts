@@ -1,42 +1,59 @@
 /**
- * index.ts
+ * index.ts — the DEV team consumes the governed Fractal.
  *
- * Entry point for the basic security sample.
+ * The dev never authors infrastructure: they (1) specialize the Fractal through
+ * its typed Interface (the dev-open ops only — guardrails are locked), then
+ * (2) build a LiveSystem by SELECTING, per component, one concrete offer from
+ * the open Catalogue. Selection is the ONLY place a vendor is named.
  *
- * This sample is CaaS-only (Ocelot), so there is no multi-provider dispatch.
- *
- * Environment variables:
- *   SERVICE_ACCOUNT_ID     – Fractal Cloud service account ID
- *   SERVICE_ACCOUNT_SECRET – Fractal Cloud service account secret
- *   OWNER_ID               – UUID of the Fractal Cloud owner
- *   ENVIRONMENT_NAME       – kebab-case environment name, e.g. "dev"
+ * Offer selection is per-component, so a single LiveSystem can mix vendors and
+ * delivery models freely. The compiler enforces that each selected offer
+ * satisfies its component.
  */
+import {authorFractal} from './fractal';
+import {deploy, Ocelot, Cognito} from '@fractal_cloud/sdk/model';
 
-import {ServiceAccountCredentials, ServiceAccountId} from '@fractal_cloud/sdk';
-import {fractal} from './fractal';
-import {getLiveSystem} from './caas_live_system';
+const environment = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
+};
 
-const credentials = ServiceAccountCredentials.getBuilder()
-  .withId(
-    ServiceAccountId.getBuilder()
-      .withValue(process.env['SERVICE_ACCOUNT_ID']!)
-      .build(),
-  )
-  .withSecret(process.env['SERVICE_ACCOUNT_SECRET']!)
-  .build();
-
-const liveSystem = getLiveSystem();
+// Per-component offer selection — the only place a vendor is named. Swap any
+// line to change vendor; the Fractal is untouched.
+//   - mesh: Ocelot (vendor-neutral self-hosted CaaS service mesh).
+//   - idp:  Cognito (AWS-managed identity provider).
+// Keycloak({}) — a vendor-neutral self-hosted CaaS identity provider — is also a
+// valid `idp` selection: a future-proof drop-in that satisfies the same
+// component with no change to the Fractal.
+const select = {
+  mesh: Ocelot({}),
+  idp: Cognito({}),
+};
 
 async function main() {
-  await fractal.deploy(credentials);
-  await liveSystem.deploy(credentials);
-  if (process.env['FRACTAL_RESULT_PATH']) {
-    const {writeFileSync} = await import('fs');
-    writeFileSync(
-      process.env['FRACTAL_RESULT_PATH']!,
-      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) + '\n',
-    );
-  }
+  // 1. Specialize through the Interface (dev-open ops only). Immutable: the
+  //    authored Fractal is never mutated, so it stays reusable.
+  // 2. Build the LiveSystem by selecting an offer per component.
+  const ls = authorFractal()
+    .specialize()
+    // Application-level operation: the app names its user directory.
+    .withUserDirectory('acme')
+    .toLiveSystem({
+      name: 'basic-security',
+      environment,
+      select,
+    });
+
+  // 3. Deploy: submit the LiveSystem and wait until Active (wait-mode logs).
+  const credentials = {
+    clientId: process.env['SERVICE_ACCOUNT_ID']!,
+    clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
+  };
+  await deploy(ls, credentials, {mode: 'wait'});
 }
 
-main().catch(console.error);
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

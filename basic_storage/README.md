@@ -1,52 +1,62 @@
 # basic_storage
 
-Demonstrates a cloud-agnostic storage workload using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS, Azure, or GCP** — select the target provider at runtime with a single environment variable.
+Demonstrates a cloud-agnostic storage workload using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS, Azure, or GCP** — select the target at runtime with a single environment variable.
 
 ## What it provisions
 
 ```
-RelationalDbms (main-dbms) — PostgreSQL 15
-+-- RelationalDatabase (app-db) — collation: en_US.utf8, charset: UTF8
+ObjectStorage (uploads) — encrypted, versioned, private, 90-day retention, standard class
 
-FilesAndBlobs (app-storage) — object storage bucket
+RelationalDbms (app-dbms) — PostgreSQL 16, zone-redundant HA, 30-day backup, 100 GB
++-- RelationalDatabase (orders) — charset: UTF8, collation: en_US.utf8
++-- RelationalDatabase (audit)  — charset: UTF8, collation: en_US.utf8
 ```
 
-The DBMS dependency is auto-wired into the database by the blueprint — no manual wiring needed in live system files.
-
-**Note:** AWS currently only supports the object storage component (S3). Azure and GCP support the full stack (PostgreSQL DBMS + Database + object storage).
+The DBMS → Database dependency is auto-wired by `withDatabases()` in the blueprint. The databases are emitted by the selected DBMS offer in its own vendor family — no separate offer selection is needed for them.
 
 ## Project layout
 
 ```
 src/
-  fractal.ts            # Cloud-agnostic blueprint: DBMS, database, object storage
-  aws_live_system.ts    # AWS:   S3
-  azure_live_system.ts  # Azure: Storage Account + PostgreSQL Flexible Server
-  gcp_live_system.ts    # GCP:   Cloud Storage + Cloud SQL PostgreSQL
-  index.ts              # Entry point — provider selected by CLOUD_PROVIDER
+  fractal.ts   # Cloud-agnostic blueprint: ObjectStorage, RelationalDbms, RelationalDatabase.
+               # Guardrails (encryption, HA, backup, version, charset/collation) locked here.
+               # Operations expose withFolders() and withDatabases() to the dev team.
+  index.ts     # Entry point — offer selection per component (dispatch via TARGET).
+               # Builds the LiveSystem with select: { componentId: Offer({...}) },
+               # then deploys with mode: 'wait'.
 ```
 
 ### Blueprint / Live System split
 
 | Concern | Declared in |
 |---------|-------------|
-| Database version (`15`), collation, charset | `fractal.ts` — blueprint params |
+| Engine version (`16`), HA mode, backup retention, storage size | `fractal.ts` — blueprint guardrails |
+| Charset / collation per database | `fractal.ts` — blueprint guardrails |
 | DBMS → Database dependency | `fractal.ts` — auto-wired by `withDatabases()` |
-| Azure region, resource group, SKU | `azure_live_system.ts` |
-| GCP region, Cloud SQL tier | `gcp_live_system.ts` |
-| S3 bucket name, versioning | `aws_live_system.ts` |
+| Encryption, versioning, public access, retention, storage class | `fractal.ts` — blueprint guardrails |
+| Application folders and database names | `index.ts` — operations (`.withFolders()`, `.withDatabases()`) |
+| AWS S3 bucket region | `index.ts` — offer config (`AwsS3`) |
+| Azure PostgreSQL resource group | `index.ts` — offer config (`AzurePostgresDbms`) |
+| GCP Cloud Storage location | `index.ts` — offer config (`GcsBucket`) |
+| GCP Cloud SQL tier | `index.ts` — offer config (`GcpPostgresDbms`) |
 
-## Selecting a provider
+## Selecting a target
 
-Set `CLOUD_PROVIDER` to one of: `aws` (default) · `azure` · `gcp`
+Set `TARGET` to one of: `azure` (default) · `gcp` · `mixed`
+
+| Value | `uploads` offer | `app-dbms` offer |
+|-------|-----------------|------------------|
+| `azure` | `AwsS3` (eu-west-1) | `AzurePostgresDbms` (rg-storage) |
+| `gcp` | `GcsBucket` (EU) | `GcpPostgresDbms` (db-custom-2-7680) |
+| `mixed` | `AwsS3` (us-east-1) | `AzurePostgresDbms` (rg-storage) |
+
+`mixed` is the headline example: two components in the same LiveSystem served by two different cloud vendors.
 
 ```bash
-CLOUD_PROVIDER=azure node build/src/index.js
+TARGET=gcp node build/src/index.js
 ```
 
 ## Environment variables
-
-### Common (all providers)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -54,25 +64,10 @@ CLOUD_PROVIDER=azure node build/src/index.js
 | `SERVICE_ACCOUNT_SECRET` | yes | Fractal Cloud service account secret |
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
 | `ENVIRONMENT_NAME` | no | kebab-case environment name (default: `dev`) |
+| `BC_NAME` | no | Bounded-context name (default: `wizard`) |
+| `TARGET` | no | Offer selection target: `azure` (default), `gcp`, or `mixed` |
 
-### AWS (`CLOUD_PROVIDER=aws`)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `S3_BUCKET_NAME` | no | `my-app-storage-bucket` | S3 bucket name |
-
-### Azure (`CLOUD_PROVIDER=azure`)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `AZURE_LOCATION` | no | `westeurope` | Azure region |
-| `AZURE_RESOURCE_GROUP` | no | `my-resource-group` | Azure resource group name |
-
-### GCP (`CLOUD_PROVIDER=gcp`)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GCP_REGION` | no | `europe-west1` | GCP region |
+All offer configuration (regions, resource groups, tiers) is hardcoded in `index.ts`. No additional environment variables are required.
 
 ## Running
 
@@ -88,12 +83,14 @@ export SERVICE_ACCOUNT_ID=<id>
 export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 
-# AWS (default — S3 only)
-node build/src/index.js
+# Azure S3 bucket + Azure PostgreSQL (default)
+TARGET=azure node build/src/index.js
 
-# Azure (Storage Account + PostgreSQL)
-CLOUD_PROVIDER=azure node build/src/index.js
+# GCP Cloud Storage + GCP Cloud SQL
+TARGET=gcp node build/src/index.js
 
-# GCP (Cloud Storage + Cloud SQL)
-CLOUD_PROVIDER=gcp node build/src/index.js
+# Mixed: AWS S3 bucket + Azure PostgreSQL
+TARGET=mixed node build/src/index.js
 ```
+
+The SDK deploys in `wait` mode: it polls until the LiveSystem reaches Active status and streams structured log lines to stdout.

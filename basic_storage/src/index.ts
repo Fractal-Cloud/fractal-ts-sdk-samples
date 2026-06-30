@@ -1,75 +1,84 @@
 /**
- * index.ts
+ * index.ts — the DEV team consumes the governed Fractal.
  *
- * Entry point for the basic storage sample.
+ * The dev never authors infrastructure: they (1) specialize the Fractal through
+ * its typed Interface (the dev-open ops only — guardrails are locked), then
+ * (2) build a LiveSystem by SELECTING, per component, one concrete offer from
+ * the open Catalogue. Selection is the ONLY place a vendor is named.
  *
- * Select the target cloud provider at runtime via the CLOUD_PROVIDER environment
- * variable. Only the selected provider's live system is instantiated, so only
- * that provider's credentials and parameters need to be set.
- *
- * Supported values: aws (default) | azure | gcp
- *
- * Common environment variables (all providers):
- *   SERVICE_ACCOUNT_ID     – Fractal Cloud service account ID
- *   SERVICE_ACCOUNT_SECRET – Fractal Cloud service account secret
- *   OWNER_ID               – UUID of the Fractal Cloud owner
- *   ENVIRONMENT_NAME       – kebab-case environment name, e.g. "dev"
- *
- * AWS-specific:
- *   S3_BUCKET_NAME         – (optional) S3 bucket name
- *
- * Azure-specific:
- *   AZURE_LOCATION         – (optional) Azure region, default "westeurope"
- *   AZURE_RESOURCE_GROUP   – (optional) Azure resource group name, default "my-resource-group"
- *
- * GCP-specific:
- *   GCP_REGION             – (optional) GCP region, default "europe-west1"
+ * Offer selection is per-component, so a single LiveSystem can mix vendors and
+ * delivery models freely (here: an AWS bucket alongside an Azure database). The
+ * compiler enforces that each selected offer satisfies its component.
  */
+import {authorFractal} from './fractal';
+import {
+  deploy,
+  AwsS3,
+  GcsBucket,
+  AzurePostgresDbms,
+  GcpPostgresDbms,
+} from '@fractal_cloud/sdk/model';
 
-import {ServiceAccountCredentials, ServiceAccountId} from '@fractal_cloud/sdk';
-import {fractal} from './fractal';
-import {getLiveSystem as getAws} from './aws_live_system';
-import {getLiveSystem as getAzure} from './azure_live_system';
-import {getLiveSystem as getGcp} from './gcp_live_system';
+const environment = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
+};
 
-const providers = {
-  aws: getAws,
-  azure: getAzure,
-  gcp: getGcp,
-} as const;
-
-type ProviderKey = keyof typeof providers;
-
-const providerKey = (process.env['CLOUD_PROVIDER'] ?? 'aws') as ProviderKey;
-
-if (!(providerKey in providers)) {
-  console.error(
-    `Unknown CLOUD_PROVIDER "${providerKey}". Valid values: ${Object.keys(providers).join(', ')}`,
-  );
-  process.exit(1);
-}
-
-const credentials = ServiceAccountCredentials.getBuilder()
-  .withId(
-    ServiceAccountId.getBuilder()
-      .withValue(process.env['SERVICE_ACCOUNT_ID']!)
-      .build(),
-  )
-  .withSecret(process.env['SERVICE_ACCOUNT_SECRET']!)
-  .build();
-
-const liveSystem = providers[providerKey]();
-
-async function main() {
-  await fractal.deploy(credentials);
-  await liveSystem.deploy(credentials);
-  if (process.env['FRACTAL_RESULT_PATH']) {
-    const {writeFileSync} = await import('fs');
-    writeFileSync(
-      process.env['FRACTAL_RESULT_PATH']!,
-      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) + '\n',
-    );
+// Per-component offer selection. Swap any line to change vendor — the Fractal is
+// untouched. `azure`/`gcp` are coherent single-vendor systems; `mixed` shows the
+// model's headline feature: heterogeneous vendors in ONE LiveSystem.
+// Per-component offer selection. Only the top-level components are selected; the
+// databases the app declared (withDatabases) are emitted by the chosen DBMS
+// offer's family — no separate selection. Swap any line to change vendor; the
+// Fractal is untouched. `mixed` shows heterogeneous vendors in ONE LiveSystem.
+function selectionFor(target: 'azure' | 'gcp' | 'mixed') {
+  switch (target) {
+    case 'gcp':
+      return {
+        uploads: GcsBucket({location: 'EU'}),
+        'app-dbms': GcpPostgresDbms({tier: 'db-custom-2-7680'}),
+      };
+    case 'mixed':
+      return {
+        uploads: AwsS3({bucketRegion: 'us-east-1'}), // AWS object storage…
+        'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}), // …+ Azure DB
+      };
+    case 'azure':
+    default:
+      return {
+        uploads: AwsS3({bucketRegion: 'eu-west-1'}),
+        'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}),
+      };
   }
 }
 
-main().catch(console.error);
+async function main() {
+  const target = (process.env['TARGET'] ?? 'mixed') as 'azure' | 'gcp' | 'mixed';
+
+  // 1. Specialize through the Interface (dev-open ops only). Immutable: the
+  //    authored Fractal is never mutated, so it stays reusable.
+  // 2. Build the LiveSystem by selecting an offer per component.
+  const liveSystem = authorFractal()
+    .specialize()
+    // Application-level operations: the app declares its folders + databases.
+    .withFolders(['invoices', 'exports'])
+    .withDatabases(['orders', 'audit'])
+    .toLiveSystem({
+      name: 'acme-storage',
+      environment,
+      select: selectionFor(target),
+    });
+
+  // 3. Deploy: submit the LiveSystem and wait until Active (wait-mode logs).
+  const credentials = {
+    clientId: process.env['SERVICE_ACCOUNT_ID']!,
+    clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
+  };
+  await deploy(liveSystem, credentials, {mode: 'wait'});
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

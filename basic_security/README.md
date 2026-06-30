@@ -1,41 +1,46 @@
 # basic_security
 
-Demonstrates a service mesh using the Fractal Cloud TypeScript SDK. This sample is **CaaS-only** — it deploys an Ocelot service mesh on a Kubernetes cluster.
+Demonstrates governed security infrastructure using the Fractal Cloud TypeScript SDK. The blueprint locks organization-wide security posture (strict mTLS, password policy, mandatory MFA); the dev team specializes through a typed Interface and selects one concrete offer per component at LiveSystem build time.
 
 ## What it provisions
 
 ```
-ServiceMesh (service-mesh) — Ocelot
+ServiceMesh        (mesh) — Ocelot (vendor-neutral self-hosted CaaS)
+IdentityProvider   (idp)  — Cognito (AWS-managed)
 ```
 
-A single service mesh component with host routing, CORS, and cookie configuration.
+- `ServiceMesh`: mTLS mode locked to `strict` by the architect (guardrail). Provisioned via the Ocelot self-hosted offer — no cloud provider required.
+- `IdentityProvider`: minimum password length (12) and MFA enforcement locked by the architect. The dev names the user directory (`acme`) through the typed `withUserDirectory` operation. Provisioned via the Cognito offer.
 
 ## Project layout
 
 ```
 src/
-  fractal.ts            # Cloud-agnostic blueprint: service mesh
-  caas_live_system.ts   # CaaS:  Ocelot
-  index.ts              # Entry point — no multi-provider dispatch
+  fractal.ts   # Architect-authored blueprint: ServiceMesh + IdentityProvider,
+               # guardrails locked, typed Interface exposed to the dev team
+  index.ts     # Dev entry point: specialize via Interface, then select one offer
+               # per component (Ocelot for mesh, Cognito for idp) and deploy
 ```
 
-### Blueprint / Live System split
+### Blueprint / offer-selection split
 
 | Concern | Declared in |
 |---------|-------------|
-| Component ID, version, display name | `fractal.ts` |
-| Ocelot namespace, host, owner email, CORS origins, cookie max age | `caas_live_system.ts` |
+| Component IDs, version, description | `fractal.ts` |
+| Guardrails (mTLS mode, password policy, MFA) | `fractal.ts` — locked, not overridable |
+| Application-level operation (`withUserDirectory`) | `fractal.ts` Interface |
+| Offer selection per component | `index.ts` (`select` map) |
+| Credentials, environment, deploy call | `index.ts` |
 
 ## Environment variables
-
-This sample does not use `CLOUD_PROVIDER` — it is CaaS-only.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `SERVICE_ACCOUNT_ID` | yes | Fractal Cloud service account ID |
 | `SERVICE_ACCOUNT_SECRET` | yes | Fractal Cloud service account secret |
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
-| `ENVIRONMENT_NAME` | no | kebab-case environment name (default: `dev`) |
+| `ENVIRONMENT_NAME` | no | Kebab-case environment name (default: `dev`) |
+| `BC_NAME` | no | Bounded-context name (default: `wizard`) |
 
 ## Running
 
@@ -53,3 +58,5 @@ export OWNER_ID=<uuid>
 
 node build/src/index.js
 ```
+
+The SDK deploys in `wait` mode: it polls until the LiveSystem reaches `Active` and emits structured log lines to stdout.
