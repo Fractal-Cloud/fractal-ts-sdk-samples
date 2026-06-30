@@ -21,10 +21,15 @@ src/
   fractal.ts   # Cloud-agnostic blueprint: ObjectStorage, RelationalDbms, RelationalDatabase.
                # Guardrails (encryption, HA, backup, version, charset/collation) locked here.
                # Operations expose withFolders() and withDatabases() to the dev team.
-  index.ts     # Entry point — offer selection per component (dispatch via TARGET).
-               # Builds the LiveSystem with select: { componentId: Offer({...}) },
-               # then deploys with mode: 'wait'.
+  azure.ts     # Self-contained Azure entrypoint — copy and run
+  gcp.ts       # Self-contained GCP entrypoint — copy and run
+  mixed.ts     # Self-contained mixed-vendor entrypoint (AWS bucket + Azure DB) — copy and run
 ```
+
+Each `src/<cloud>.ts` is a self-contained, runnable entrypoint. It builds the
+LiveSystem with `select: { componentId: Offer({...}) }`, then deploys with
+`mode: 'wait'`. Pick a target by copying and running its file — there is no
+dispatch. The inline `select` map is the only target-specific code.
 
 ### Blueprint / Live System split
 
@@ -34,26 +39,26 @@ src/
 | Charset / collation per database | `fractal.ts` — blueprint guardrails |
 | DBMS → Database dependency | `fractal.ts` — auto-wired by `withDatabases()` |
 | Encryption, versioning, public access, retention, storage class | `fractal.ts` — blueprint guardrails |
-| Application folders and database names | `index.ts` — operations (`.withFolders()`, `.withDatabases()`) |
-| AWS S3 bucket region | `index.ts` — offer config (`AwsS3`) |
-| Azure PostgreSQL resource group | `index.ts` — offer config (`AzurePostgresDbms`) |
-| GCP Cloud Storage location | `index.ts` — offer config (`GcsBucket`) |
-| GCP Cloud SQL tier | `index.ts` — offer config (`GcpPostgresDbms`) |
+| Application folders and database names | per-target entrypoint — operations (`.withFolders()`, `.withDatabases()`) |
+| AWS S3 bucket region | per-target entrypoint — offer config (`AwsS3`) |
+| Azure PostgreSQL resource group | per-target entrypoint — offer config (`AzurePostgresDbms`) |
+| GCP Cloud Storage location | per-target entrypoint — offer config (`GcsBucket`) |
+| GCP Cloud SQL tier | per-target entrypoint — offer config (`GcpPostgresDbms`) |
 
 ## Selecting a target
 
-Set `TARGET` to one of: `azure` (default) · `gcp` · `mixed`
+Pick a target by running its entrypoint: `azure.js` · `gcp.js` · `mixed.js`
 
-| Value | `uploads` offer | `app-dbms` offer |
+| Entrypoint | `uploads` offer | `app-dbms` offer |
 |-------|-----------------|------------------|
-| `azure` | `AwsS3` (eu-west-1) | `AzurePostgresDbms` (rg-storage) |
-| `gcp` | `GcsBucket` (EU) | `GcpPostgresDbms` (db-custom-2-7680) |
-| `mixed` | `AwsS3` (us-east-1) | `AzurePostgresDbms` (rg-storage) |
+| `azure.ts` | `AwsS3` (eu-west-1) | `AzurePostgresDbms` (rg-storage) |
+| `gcp.ts` | `GcsBucket` (EU) | `GcpPostgresDbms` (db-custom-2-7680) |
+| `mixed.ts` | `AwsS3` (us-east-1) | `AzurePostgresDbms` (rg-storage) |
 
 `mixed` is the headline example: two components in the same LiveSystem served by two different cloud vendors.
 
 ```bash
-TARGET=gcp node build/src/index.js
+node build/src/gcp.js
 ```
 
 ## Environment variables
@@ -65,9 +70,10 @@ TARGET=gcp node build/src/index.js
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
 | `ENVIRONMENT_NAME` | no | kebab-case environment name (default: `dev`) |
 | `BC_NAME` | no | Bounded-context name (default: `wizard`) |
-| `TARGET` | no | Offer selection target: `azure` (default), `gcp`, or `mixed` |
 
-All offer configuration (regions, resource groups, tiers) is hardcoded in `index.ts`. No additional environment variables are required.
+Pick a target by running its entrypoint (`azure.js` · `gcp.js` · `mixed.js`) — there is no target-selection environment variable.
+
+All offer configuration (regions, resource groups, tiers) is hardcoded in each per-target entrypoint. No additional environment variables are required.
 
 ## Running
 
@@ -83,14 +89,9 @@ export SERVICE_ACCOUNT_ID=<id>
 export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 
-# Azure S3 bucket + Azure PostgreSQL (default)
-TARGET=azure node build/src/index.js
-
-# GCP Cloud Storage + GCP Cloud SQL
-TARGET=gcp node build/src/index.js
-
-# Mixed: AWS S3 bucket + Azure PostgreSQL
-TARGET=mixed node build/src/index.js
+node build/src/azure.js    # AWS S3 bucket + Azure PostgreSQL
+node build/src/gcp.js      # GCP Cloud Storage + GCP Cloud SQL
+node build/src/mixed.js    # mixed: AWS S3 bucket + Azure PostgreSQL
 ```
 
 The SDK deploys in `wait` mode: it polls until the LiveSystem reaches Active status and streams structured log lines to stdout.

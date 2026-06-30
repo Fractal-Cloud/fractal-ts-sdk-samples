@@ -17,10 +17,11 @@ The broker dependency is declared in the blueprint via `.dependsOn(broker)` on e
 ```
 src/
   fractal.ts   # Cloud-agnostic blueprint: broker + two governed topics
-  index.ts     # Offer-selection entry point — CLOUD_PROVIDER picks the vendor set
+  azure.ts     # Self-contained Azure entrypoint — copy and run
+  gcp.ts       # Self-contained GCP entrypoint — copy and run
 ```
 
-`fractal.ts` authors the immutable Fractal once using `createFractal` with abstract `Broker` and `MessagingEntity` components. `index.ts` specializes and builds the LiveSystem by selecting one concrete offer per component, dispatched on `CLOUD_PROVIDER`.
+`fractal.ts` authors the immutable Fractal once using `createFractal` with abstract `Broker` and `MessagingEntity` components. Each `src/<cloud>.ts` is a self-contained, runnable entrypoint that specializes the Fractal and builds the LiveSystem by selecting one concrete offer per component in its inline `select` map. Pick a cloud by copying and running its file — there is no provider dispatch.
 
 ### Blueprint / offer split
 
@@ -29,15 +30,15 @@ src/
 | Broker and topic structure | `fractal.ts` — blueprint |
 | Topic names, retention guardrail | `fractal.ts` — blueprint params |
 | Broker → topic dependency | `fractal.ts` — `.dependsOn(broker)` |
-| Azure Service Bus namespace + topic offer config | `index.ts` — offer config (`azure` branch) |
-| GCP Pub/Sub + topic offer config | `index.ts` — offer config (`gcp` branch) |
+| Azure Service Bus namespace + topic offer config | `azure.ts` — offer config |
+| GCP Pub/Sub + topic offer config | `gcp.ts` — offer config |
 
 ## Selecting a provider
 
-Set `CLOUD_PROVIDER` to one of: `azure` (default) · `gcp`
+Pick a provider by running its entrypoint: `azure.js` · `gcp.js`
 
 ```bash
-CLOUD_PROVIDER=gcp node build/src/index.js
+node build/src/gcp.js
 ```
 
 ## Environment variables
@@ -54,9 +55,7 @@ CLOUD_PROVIDER=gcp node build/src/index.js
 
 ### Provider selection
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `CLOUD_PROVIDER` | no | `azure` | Target provider: `azure` or `gcp` |
+Pick a provider by running its entrypoint (`azure.js` · `gcp.js`) — there is no provider-selection environment variable.
 
 ## Running
 
@@ -72,11 +71,8 @@ export SERVICE_ACCOUNT_ID=<id>
 export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 
-# Azure (default — Service Bus + Topics)
-node build/src/index.js
-
-# GCP (Pub/Sub + Topics)
-CLOUD_PROVIDER=gcp node build/src/index.js
+node build/src/azure.js    # deploy on Azure (Service Bus + Topics)
+node build/src/gcp.js      # deploy on GCP (Pub/Sub + Topics)
 ```
 
 Deploy runs in `wait` mode: the SDK polls until the LiveSystem reaches Active and emits structured log lines to stdout.

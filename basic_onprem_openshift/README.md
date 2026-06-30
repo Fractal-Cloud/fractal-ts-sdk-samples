@@ -7,7 +7,7 @@ Deploys a complete on-premises **OpenShift** workload showcasing all available c
 | File | Role |
 |------|------|
 | `src/fractal.ts` | Architect-authored Fractal — abstract blueprint (SecurityGroup, two Workloads, LoadBalancer, ObjectStorage, VirtualMachine), guardrails, links, and the typed Interface (operations). |
-| `src/index.ts` | Dev-team entry point — specializes the Fractal through its Interface, then builds and deploys a LiveSystem by selecting one OpenShift offer per component. |
+| `src/openshift.ts` | Dev-team entry point — a self-contained, runnable file you copy and run. It specializes the Fractal through its Interface, then builds and deploys a LiveSystem by selecting one OpenShift offer per component in its inline `select` map. |
 
 ## Components
 
@@ -34,7 +34,7 @@ export SERVICE_ACCOUNT_ID="..."
 export SERVICE_ACCOUNT_SECRET="..."
 export OWNER_ID="..."
 
-node build/src/index.js
+node build/src/openshift.js   # deploy on OpenShift
 ```
 
 The deploy runs in `wait` mode: structured log lines are emitted to stdout on each poll round until the LiveSystem reaches Active.

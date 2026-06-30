@@ -17,7 +17,7 @@ src/
   fractal.ts   # Architect layer: vendor-agnostic blueprint — Monitoring, Tracing, Logging
                #   Guardrails locked here: retentionDays, scrapeInterval, samplingRate.
                #   No operations (platform observability; no app-level verbs to expose).
-  index.ts     # Dev layer: offer-selection entry point.
+  caas.ts      # Dev layer: self-contained, runnable CaaS entrypoint — copy and run.
                #   Selects one self-hosted CaaS offer per component
                #   (Prometheus / Jaeger / ObservabilityElastic) in the `select` map,
                #   then deploys. No provider switch — these offers are vendor-neutral.
@@ -25,7 +25,7 @@ src/
 
 ### Blueprint → offer mapping
 
-| Blueprint component | ID | Offer selected in `index.ts` |
+| Blueprint component | ID | Offer selected in `caas.ts` |
 |---------------------|----|-------------------------------|
 | `Monitoring` | `monitoring` | `Prometheus({})` |
 | `Tracing` | `tracing` | `Jaeger({})` |
@@ -57,7 +57,7 @@ export SERVICE_ACCOUNT_ID=<id>
 export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 
-node build/src/index.js
+node build/src/caas.js     # deploy on self-hosted CaaS
 ```
 
 The SDK deploys in `wait` mode and emits structured log lines (`INFO` / `CHECK` / `ERROR`) until the Live System reaches Active (or fails/times out).

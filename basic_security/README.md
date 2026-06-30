@@ -18,8 +18,9 @@ IdentityProvider   (idp)  — Cognito (AWS-managed)
 src/
   fractal.ts   # Architect-authored blueprint: ServiceMesh + IdentityProvider,
                # guardrails locked, typed Interface exposed to the dev team
-  index.ts     # Dev entry point: specialize via Interface, then select one offer
-               # per component (Ocelot for mesh, Cognito for idp) and deploy
+  aws.ts       # Dev entry point: a self-contained, runnable file you copy and run.
+               # Specialize via Interface, then select one offer per component
+               # (Ocelot for mesh, Cognito for idp) in the inline `select` map and deploy
 ```
 
 ### Blueprint / offer-selection split
@@ -29,8 +30,8 @@ src/
 | Component IDs, version, description | `fractal.ts` |
 | Guardrails (mTLS mode, password policy, MFA) | `fractal.ts` — locked, not overridable |
 | Application-level operation (`withUserDirectory`) | `fractal.ts` Interface |
-| Offer selection per component | `index.ts` (`select` map) |
-| Credentials, environment, deploy call | `index.ts` |
+| Offer selection per component | `aws.ts` (`select` map) |
+| Credentials, environment, deploy call | `aws.ts` |
 
 ## Environment variables
 
@@ -56,7 +57,7 @@ export SERVICE_ACCOUNT_ID=<id>
 export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 
-node build/src/index.js
+node build/src/aws.js      # deploy on AWS
 ```
 
 The SDK deploys in `wait` mode: it polls until the LiveSystem reaches `Active` and emits structured log lines to stdout.
