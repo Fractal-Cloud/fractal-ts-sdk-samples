@@ -1,87 +1,73 @@
 /**
- * index.ts
+ * index.ts — the DEV team consumes the governed Fractal in a CI/CD pipeline.
  *
- * CI/CD entry point — deploys the Fractal blueprint and the AWS Live System,
- * then BLOCKS until both reach Active status before exiting.
+ * The dev never authors infrastructure. They (1) specialize the Fractal (here
+ * there are no application operations to call — guardrails are already locked in
+ * the blueprint), then (2) build a LiveSystem by SELECTING, per component, one
+ * concrete offer from the open Catalogue. Selection is the ONLY place a vendor
+ * is named.
  *
- * This is the correct pattern for CI/CD pipelines: the process exits with
- * code 0 only when infrastructure is fully provisioned and Active.
- * A non-zero exit code fails the pipeline and surfaces the error.
+ * This sample selects AWS for every component. Because selection is per-component
+ * and future-proof, swapping any line below to another offer (e.g. AzureVnet,
+ * GcpVpc) repoints that slot with no change to the Fractal — and a second
+ * provider could be mixed into the same LiveSystem if ever needed.
  *
- * Deployment timeout and polling interval are configurable via environment
- * variables so that pipeline operators can tune them without code changes.
- *
- * Required environment variables:
- *   SERVICE_ACCOUNT_ID      – Fractal Cloud service account ID
- *   SERVICE_ACCOUNT_SECRET  – Fractal Cloud service account secret
- *   OWNER_ID                – UUID of the Fractal Cloud owner
- *
- * Optional environment variables:
- *   ENVIRONMENT_NAME        – kebab-case environment name (default: "dev")
- *   DEPLOY_MODE             – "wait" (default) blocks until Active; "fire-and-forget"
- *                             submits and returns immediately. CI/CD pipelines want
- *                             "wait"; orchestrators that own verification themselves
- *                             (e.g. Evergreen) set "fire-and-forget".
- *   DEPLOY_TIMEOUT_MS       – max ms to wait for Active status (default: 600000 = 10 min)
- *   DEPLOY_POLL_INTERVAL_MS – polling interval in ms (default: 5000 = 5 s)
- *   AWS_AVAILABILITY_ZONE   – EC2 subnet AZ (default: "eu-central-1a")
- *   EC2_AMI_ID              – EC2 AMI ID (default: "ami-0970102fe1454052a", arm64/Graviton)
- *   EC2_INSTANCE_TYPE       – EC2 instance type (default: "t4g.micro" / "t4g.small"; arm64 to match the default AMI's architecture)
- *   EC2_KEY_NAME            – (optional) EC2 key pair name for SSH; omit to launch without a key pair
+ * Deploy runs in `wait` mode: the process blocks until the LiveSystem reaches
+ * Active and exits non-zero on failure — the correct shape for a CI/CD gate.
  */
-
-import {ServiceAccountCredentials, ServiceAccountId} from '@fractal_cloud/sdk';
-import {fractal} from './fractal';
-import {getLiveSystem} from './aws_live_system';
-
-const credentials = ServiceAccountCredentials.getBuilder()
-  .withId(
-    ServiceAccountId.getBuilder()
-      .withValue(process.env['SERVICE_ACCOUNT_ID']!)
-      .build(),
-  )
-  .withSecret(process.env['SERVICE_ACCOUNT_SECRET']!)
-  .build();
-
-const timeoutMs = process.env['DEPLOY_TIMEOUT_MS']
-  ? parseInt(process.env['DEPLOY_TIMEOUT_MS'], 10)
-  : 600_000;
-
-const pollIntervalMs = process.env['DEPLOY_POLL_INTERVAL_MS']
-  ? parseInt(process.env['DEPLOY_POLL_INTERVAL_MS'], 10)
-  : 5_000;
-
-const mode =
-  process.env['DEPLOY_MODE'] === 'fire-and-forget' ? 'fire-and-forget' : 'wait';
-
-const deployOptions = {
-  mode,
-  timeoutMs,
-  pollIntervalMs,
-} as const;
+import {authorFractal} from './fractal';
+import {
+  deploy,
+  AwsVpc,
+  AwsSubnet,
+  AwsSecurityGroup,
+  Ec2Instance,
+} from '@fractal_cloud/sdk/model';
 
 async function main() {
-  console.log('Registering Fractal blueprint...');
-  await fractal.deploy(credentials);
-  console.log('Fractal blueprint registered.');
+  // Per-component offer selection — the only vendor-specific code in the sample.
+  // Vendor-only knobs (amiId, instanceType) are offer config; both VMs share the
+  // same AMI but differ in instance size.
+  const select = {
+    'main-network': AwsVpc({}),
+    'public-subnet': AwsSubnet({}),
+    'web-sg': AwsSecurityGroup({}),
+    'api-server': Ec2Instance({
+      amiId: 'ami-096a4fdbcf530d8e0',
+      instanceType: 't3.small',
+    }),
+    'web-server': Ec2Instance({
+      amiId: 'ami-096a4fdbcf530d8e0',
+      instanceType: 't3.micro',
+    }),
+  };
 
-  console.log('Deploying Live System...');
-  const liveSystem = getLiveSystem();
-  await liveSystem.deploy(credentials, deployOptions);
-  if (process.env['FRACTAL_RESULT_PATH']) {
-    const {writeFileSync} = await import('fs');
-    writeFileSync(
-      process.env['FRACTAL_RESULT_PATH']!,
-      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) +
-        '\n',
-    );
-  }
-  console.log(
-    'Live System is Active. Infrastructure provisioned successfully.',
+  // 1. Specialize (immutable — the authored Fractal is never mutated).
+  // 2. Build the LiveSystem by selecting an offer per component.
+  const ls = authorFractal()
+    .specialize()
+    .toLiveSystem({
+      name: 'basic-cicd',
+      environment: {
+        ownerType: 'Personal',
+        ownerId: process.env['OWNER_ID'] ?? '',
+        name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
+      },
+      select,
+    });
+
+  // 3. Deploy: submit and block until Active (wait-mode structured logs).
+  await deploy(
+    ls,
+    {
+      clientId: process.env['SERVICE_ACCOUNT_ID']!,
+      clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
+    },
+    {mode: 'wait'},
   );
 }
 
 main().catch(err => {
-  console.error('Deployment failed:', err instanceof Error ? err.message : err);
+  console.error(err);
   process.exit(1);
 });

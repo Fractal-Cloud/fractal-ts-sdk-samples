@@ -1,89 +1,96 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Defines a cloud-agnostic Fractal (blueprint) for a basic on-prem IaaS workload:
+ * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
+ * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .VirtualMachine). It
+ * NEVER names a vendor or an offer — those are chosen later, per component, when
+ * a LiveSystem is built (see index.ts). This particular sample is deployed to a
+ * single on-prem vendor (VMware vSphere), but the blueprint itself carries no
+ * trace of that: retarget it to any other vendor by swapping the selection in
+ * index.ts, and this Fractal supports it unchanged.
  *
- *   VirtualNetwork (main-network)
- *     └── Subnet (server-vlan, CIDR 10.0.1.0/24)
- *         └── VirtualMachine (web-server) — links to api-server on port 8080
- *         └── VirtualMachine (api-server)
+ * What lives here:
+ *   - STRUCTURE — which Components exist, their DEPENDENCIES (`.dependsOn`) and
+ *     their LINKS (`bp.link`). The blueprint owns ALL structure.
+ *   - GUARDRAILS — infra PARAMETERS the architect locks at design time via each
+ *     Component's `.withXxx()` setter (here: CIDR blocks). A consuming dev cannot
+ *     override them.
  *
- * Dependencies are auto-wired by the node hierarchy — no string IDs needed.
- * No vSphere-specific details appear here — the blueprint can be satisfied
- * by any IaaS provider.
+ * What does NOT live here:
+ *   - OPERATIONS — application-level verbs a dev specializes through. This on-prem
+ *     IaaS pattern exposes no application-domain choices (no folders/schemas/
+ *     routes to declare), so `operations` is omitted entirely.
+ *   - VENDOR PARAMETERS — the VsphereVm `template`, the VspherePortGroup
+ *     `dvSwitchName`, the VsphereVlan `vlanId`, ... are OFFER config, passed at
+ *     selection time in index.ts. Never on the blueprint.
+ *
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
-
 import {
-  BoundedContext,
-  Fractal,
-  KebabCaseString,
-  OwnerId,
-  OwnerType,
-  Subnet,
-  Version,
-  VirtualMachine,
+  createFractal,
   VirtualNetwork,
-} from '@fractal_cloud/sdk';
+  Subnet,
+  VirtualMachine,
+} from '@fractal_cloud/sdk/model';
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'test-rg',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(
-    KebabCaseString.getBuilder()
-      .withValue(process.env['BC_NAME'] ?? 'test-rg')
-      .build(),
-  )
-  .build();
-
-// ── VMs (declared before the network so links can reference their IDs) ─────────
-
-const apiServer = VirtualMachine.create({
-  id: 'api-server',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'API Server',
-  description: 'Backend API server — listens on port 8080',
-});
-
-const webServer = VirtualMachine.create({
-  id: 'web-server',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Web Server',
-  description: 'Frontend web server — proxies to the API server on port 8080',
-}).linkToVirtualMachine([{target: apiServer, fromPort: 8080}]);
-
-// ── Network (components order: [network, subnet, ...vms]) ────────────────────
-
-const network = VirtualNetwork.create({
-  id: 'main-network',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Main Network',
-  description: 'Primary distributed port group for the on-prem workload',
-  cidrBlock: '10.0.0.0/16',
-}).withSubnets([
-  Subnet.create({
-    id: 'server-vlan',
+/**
+ * Author the "basic on-prem" Fractal: a virtual network with a server subnet and
+ * two VMs (an api server behind a web server). Returns a reusable, immutable
+ * Fractal — `.specialize()` never mutates it, so it is safe to author once and
+ * instantiate many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-onprem-vmware',
     version: {major: 1, minor: 0, patch: 0},
-    displayName: 'Server VLAN',
-    description: 'VLAN segment hosting the web and API servers',
-    cidrBlock: '10.0.1.0/24',
-  }).withVirtualMachines([webServer, apiServer]),
-]);
+    description: 'Governed on-prem IaaS: a virtual network, subnet + two VMs.',
+    boundedContextId,
+    blueprint: bp => {
+      // ── Virtual network — address space is a governed guardrail. ──
+      const network = bp.add(
+        VirtualNetwork({id: 'main-network'}).withCidrBlock('10.0.0.0/16'), // guardrail: the network's address space is fixed by the architect
+      );
 
-// ── Fractal ────────────────────────────────────────────────────────────────────
+      // ── Server subnet — carved from the network's CIDR; depends on it
+      //    (cannot exist before the network). Its own CIDR is governed. ──
+      const subnet = bp.add(
+        Subnet({id: 'server-vlan'})
+          .withCidrBlock('10.0.1.0/24') // guardrail: subnet range, fixed by the architect
+          .dependsOn(network), // dependency: subnet needs the network first
+      );
 
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder().withValue('basic-onprem-vmware').build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([...network.components])
-  .build();
+      // ── API server — backend VM in the subnet (depends on it). ──
+      const apiServer = bp.add(
+        VirtualMachine({id: 'api-server'}).dependsOn(subnet),
+      );
+
+      // ── Web server — frontend VM in the subnet (depends on it); proxies to
+      //    the api server. ──
+      const webServer = bp.add(
+        VirtualMachine({id: 'web-server'}).dependsOn(subnet),
+      );
+
+      // ── Links (runtime relationships — distinct from dependencies). ──
+      // Traffic-rule link (with settings): the web server may reach the api
+      // server on 8080/tcp. The agent derives managed-SG egress/ingress rules
+      // from these settings.
+      bp.link(webServer, apiServer, {
+        fromPort: 8080,
+        toPort: 8080,
+        protocol: 'tcp',
+      });
+
+      return {network, subnet, apiServer, webServer};
+    },
+
+    // No `operations`: this on-prem IaaS pattern has no application-level verbs to
+    // expose. Everything here is a guardrail (locked) or offer config (chosen in
+    // index.ts — the vSphere template, dvSwitch, vlanId).
+  });
+}

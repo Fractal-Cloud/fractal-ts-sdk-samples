@@ -1,77 +1,100 @@
 /**
- * index.ts
+ * index.ts — the DEV team consumes the governed Fractal.
  *
- * Entry point for the basic big data sample.
+ * The dev never authors infrastructure: they (1) specialize the Fractal through
+ * its typed Interface (the dev-open ops only — guardrails are locked), then
+ * (2) build a LiveSystem by SELECTING, per component, one concrete offer from
+ * the open Catalogue. Selection is the ONLY place a vendor is named.
  *
- * Select the target cloud provider at runtime via the CLOUD_PROVIDER environment
- * variable. Only the selected provider's live system is instantiated, so only
- * that provider's credentials and parameters need to be set.
- *
- * Supported values: aws (default) | azure | gcp
- *
- * Common environment variables (all providers):
- *   SERVICE_ACCOUNT_ID     – Fractal Cloud service account ID
- *   SERVICE_ACCOUNT_SECRET – Fractal Cloud service account secret
- *   OWNER_ID               – UUID of the Fractal Cloud owner
- *   ENVIRONMENT_NAME       – kebab-case environment name, e.g. "dev"
- *
- * AWS-specific:
- *   AWS_DATABRICKS_CREDENTIALS_ID           – Databricks credentials ID
- *   AWS_DATABRICKS_STORAGE_CONFIGURATION_ID – Databricks storage configuration ID
- *   AWS_DATABRICKS_NETWORK_ID               – (optional) Databricks network ID
- *
- * Azure-specific:
- *   AZURE_MANAGED_RESOURCE_GROUP – (optional) managed resource group name
- *   AZURE_ENABLE_NO_PUBLIC_IP    – (optional) "true" to enable no public IP
- *
- * GCP-specific:
- *   GCP_DATABRICKS_NETWORK_ID – (optional) GCP network ID for Databricks
+ * Here the whole data platform targets a single provider, chosen at runtime via
+ * CLOUD_PROVIDER (aws | azure | gcp, default aws). The Fractal is untouched when
+ * the provider changes — only the per-component offer selection differs.
  */
+import {authorFractal} from './fractal';
+import {
+  deploy,
+  AwsDatabricksCluster,
+  AwsDatabricksJob,
+  AwsDatabricksMlflow,
+  AwsS3Datalake,
+  AzureDatabricksCluster,
+  AzureDatabricksJob,
+  AzureDatabricksMlflow,
+  AzureDatalake,
+  GcpDatabricksCluster,
+  GcpDatabricksJob,
+  GcpDatabricksMlflow,
+  GcpDatalake,
+} from '@fractal_cloud/sdk/model';
 
-import {ServiceAccountCredentials, ServiceAccountId} from '@fractal_cloud/sdk';
-import {fractal} from './fractal';
-import {getLiveSystem as getAws} from './aws_live_system';
-import {getLiveSystem as getAzure} from './azure_live_system';
-import {getLiveSystem as getGcp} from './gcp_live_system';
+const environment = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
+};
 
-const providers = {
-  aws: getAws,
-  azure: getAzure,
-  gcp: getGcp,
-} as const;
-
-type ProviderKey = keyof typeof providers;
-
-const providerKey = (process.env['CLOUD_PROVIDER'] ?? 'aws') as ProviderKey;
-
-if (!(providerKey in providers)) {
-  console.error(
-    `Unknown CLOUD_PROVIDER "${providerKey}". Valid values: ${Object.keys(providers).join(', ')}`,
-  );
-  process.exit(1);
-}
-
-const credentials = ServiceAccountCredentials.getBuilder()
-  .withId(
-    ServiceAccountId.getBuilder()
-      .withValue(process.env['SERVICE_ACCOUNT_ID']!)
-      .build(),
-  )
-  .withSecret(process.env['SERVICE_ACCOUNT_SECRET']!)
-  .build();
-
-const liveSystem = providers[providerKey]();
-
-async function main() {
-  await fractal.deploy(credentials);
-  await liveSystem.deploy(credentials);
-  if (process.env['FRACTAL_RESULT_PATH']) {
-    const {writeFileSync} = await import('fs');
-    writeFileSync(
-      process.env['FRACTAL_RESULT_PATH']!,
-      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) + '\n',
-    );
+// Per-component offer selection. Each branch is a coherent single-vendor data
+// platform; swap CLOUD_PROVIDER to retarget the whole system — the Fractal is
+// never touched. The compiler enforces that each selected offer satisfies its
+// component (e.g. an S3 datalake can only be selected for the 'lake' component).
+function selectionFor(provider: 'aws' | 'azure' | 'gcp') {
+  switch (provider) {
+    case 'azure':
+      return {
+        'analytics-cluster': AzureDatabricksCluster({}),
+        'etl-job': AzureDatabricksJob({}),
+        'fraud-model': AzureDatabricksMlflow({}),
+        lake: AzureDatalake({resourceGroup: 'rg-bd'}),
+      };
+    case 'gcp':
+      return {
+        'analytics-cluster': GcpDatabricksCluster({}),
+        'etl-job': GcpDatabricksJob({}),
+        'fraud-model': GcpDatabricksMlflow({}),
+        lake: GcpDatalake({bucketName: 'acme-lake'}),
+      };
+    case 'aws':
+    default:
+      return {
+        'analytics-cluster': AwsDatabricksCluster({}),
+        'etl-job': AwsDatabricksJob({}),
+        'fraud-model': AwsDatabricksMlflow({}),
+        lake: AwsS3Datalake({bucket: 'acme-lake'}),
+      };
   }
 }
 
-main().catch(console.error);
+async function main() {
+  const provider = (process.env['CLOUD_PROVIDER'] ?? 'aws') as
+    | 'aws'
+    | 'azure'
+    | 'gcp';
+
+  // 1. Specialize through the Interface (dev-open ops only). Immutable: the
+  //    authored Fractal is never mutated, so it stays reusable.
+  // 2. Build the LiveSystem by selecting an offer per component.
+  const liveSystem = authorFractal()
+    .specialize()
+    // Application-level operations: the app names its cluster, schedules its
+    // job, and names its experiment. Guardrails (capacity, retries) are locked.
+    .withClusterName('analytics')
+    .withJobSchedule('0 9 * * MON-FRI')
+    .withExperimentName('fraud')
+    .toLiveSystem({
+      name: 'basic-big-data',
+      environment,
+      select: selectionFor(provider),
+    });
+
+  // 3. Deploy: submit the LiveSystem and wait until Active (wait-mode logs).
+  const credentials = {
+    clientId: process.env['SERVICE_ACCOUNT_ID']!,
+    clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
+  };
+  await deploy(liveSystem, credentials, {mode: 'wait'});
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

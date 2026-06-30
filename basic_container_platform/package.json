@@ -1,7 +1,7 @@
 {
-  "name": "basic-ecs",
+  "name": "basic-container-platform",
   "version": "0.0.1",
-  "description": "Fractal + AWS Live System sample — ECS Cluster, Task Definitions, and Services on Fargate",
+  "description": "Fractal + Live System sample — NetworkAndCompute domain (VirtualNetwork + Subnet + SecurityGroup + ContainerPlatform + Workloads)",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "files": [
@@ -18,7 +18,7 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^1.5.3"
+    "@fractal_cloud/sdk": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",

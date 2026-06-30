@@ -1,48 +1,65 @@
 /**
- * index.ts
+ * index.ts — the DEV team consumes the governed Fractal.
  *
- * Entry point for the basic on-prem OpenShift sample.
+ * The dev never authors infrastructure: they (1) specialize the Fractal through
+ * its typed Interface (the dev-open ops only — guardrails are locked), then
+ * (2) build a LiveSystem by SELECTING, per component, one concrete offer from
+ * the open Catalogue. Selection is the ONLY place a vendor is named.
  *
- * Deploys a Fractal (cloud-agnostic blueprint) and an OpenShift Live System
- * to the Fractal Cloud API in fire-and-forget mode.
- *
- * Environment variables:
- *   SERVICE_ACCOUNT_ID       – Fractal Cloud service account ID
- *   SERVICE_ACCOUNT_SECRET   – Fractal Cloud service account secret
- *   OWNER_ID                 – UUID of the Fractal Cloud owner
- *   ENVIRONMENT_NAME         – kebab-case environment name, e.g. "dev"
- *   OPENSHIFT_NAMESPACE      – Kubernetes namespace (default "app")
- *   OPENSHIFT_STORAGE_CLASS  – StorageClass name (default "gp3-csi")
- *   OPENSHIFT_ROUTE_HOSTNAME – (optional) Route hostname for the web service
- *   OPENSHIFT_VM_IMAGE       – (optional) VM base image for OpenShift Virtualization
- *   OPENSHIFT_SSH_PUBLIC_KEY – (optional) SSH public key for VM access
+ * This sample targets a single provider — OpenShift (RedHat) — so every
+ * component selects an Openshift offer. Because selection is per-component, the
+ * same Fractal could be instantiated against other vendors with no change here.
  */
+import {authorFractal} from './fractal';
+import {
+  deploy,
+  OpenshiftPersistentVolume,
+  OpenshiftSecurityGroup,
+  OpenshiftService,
+  OpenshiftVm,
+  OpenshiftWorkload,
+} from '@fractal_cloud/sdk/model';
 
-import {ServiceAccountCredentials, ServiceAccountId} from '@fractal_cloud/sdk';
-import {fractal} from './fractal';
-import {getLiveSystem} from './openshift_live_system';
-
-const credentials = ServiceAccountCredentials.getBuilder()
-  .withId(
-    ServiceAccountId.getBuilder()
-      .withValue(process.env['SERVICE_ACCOUNT_ID']!)
-      .build(),
-  )
-  .withSecret(process.env['SERVICE_ACCOUNT_SECRET']!)
-  .build();
-
-const liveSystem = getLiveSystem();
+// Per-component offer selection — every component maps to an OpenShift offer.
+const select = {
+  'app-network-policy': OpenshiftSecurityGroup({name: 'app-network-policy'}),
+  'api-workload': OpenshiftWorkload({namespace: 'apps'}),
+  'web-workload': OpenshiftWorkload({namespace: 'apps'}),
+  'web-service': OpenshiftService({}),
+  'app-storage': OpenshiftPersistentVolume({storageSize: '10Gi'}),
+  'legacy-vm': OpenshiftVm({}),
+};
 
 async function main() {
-  await fractal.deploy(credentials);
-  await liveSystem.deploy(credentials);
-  if (process.env['FRACTAL_RESULT_PATH']) {
-    const {writeFileSync} = await import('fs');
-    writeFileSync(
-      process.env['FRACTAL_RESULT_PATH']!,
-      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) + '\n',
-    );
-  }
+  // 1. Specialize through the Interface (dev-open ops only). Immutable: the
+  //    authored Fractal is never mutated, so it stays reusable.
+  // 2. Build the LiveSystem by selecting an offer per component.
+  const ls = authorFractal()
+    .specialize()
+    // Application-level operations: the app declares its images + replicas.
+    .withApiImage('registry.redhat.io/ubi9/httpd-24:latest')
+    .withApiReplicas(2)
+    .withWebImage('nginx:alpine')
+    .withWebReplicas(2)
+    .toLiveSystem({
+      name: 'basic-onprem-openshift',
+      environment: {
+        ownerType: 'Personal',
+        ownerId: process.env['OWNER_ID'] ?? '',
+        name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
+      },
+      select,
+    });
+
+  // 3. Deploy: submit the LiveSystem and wait until Active (wait-mode logs).
+  const credentials = {
+    clientId: process.env['SERVICE_ACCOUNT_ID']!,
+    clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
+  };
+  await deploy(ls, credentials, {mode: 'wait'});
 }
 
-main().catch(console.error);
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

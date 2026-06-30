@@ -1,54 +1,76 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Defines a cloud-agnostic Fractal (blueprint) for Security:
+ * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
+ * Components (Security.ServiceMesh, Security.IdentityProvider). It NEVER names a
+ * vendor or an offer — those are chosen later, per component, when a LiveSystem
+ * is built (see index.ts). Add a new vendor to the catalogue tomorrow and this
+ * Fractal supports it unchanged.
  *
- *   ServiceMesh (service-mesh)
+ * Two kinds of specialization live here:
+ *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
+ *     LOCKED: a consuming dev cannot override it. These are security-posture
+ *     PARAMETERS (mTLS mode, password policy, MFA enforcement). They encode the
+ *     organization's non-negotiable security governance.
+ *   - OPERATIONS — the typed Interface a consuming dev uses. These are
+ *     APPLICATION-level verbs (what the app decides — the name of its user
+ *     directory), NOT pass-through setters for security knobs. Operations carry
+ *     the app's intent into neutral params; they never expose governance levers.
  *
- * The blueprint declares a single Service Mesh component.
- * No cloud-provider details appear here — the blueprint is satisfied
- * by Ocelot (CaaS) in the live system.
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
-
 import {
-  BoundedContext,
-  Fractal,
-  KebabCaseString,
-  OwnerId,
-  OwnerType,
+  createFractal,
   ServiceMesh,
-  Version,
-} from '@fractal_cloud/sdk';
+  IdentityProvider,
+} from '@fractal_cloud/sdk/model';
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'wizard',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'wizard').build())
-  .build();
+/**
+ * Author the "governed security" Fractal. Returns a reusable, immutable Fractal:
+ * `.specialize()` never mutates it, so it is safe to author once and instantiate
+ * many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-security',
+    version: {major: 1, minor: 0, patch: 0},
+    description:
+      'Governed security: a service mesh + an identity provider, both locked ' +
+      'to the organization security posture.',
+    boundedContextId,
+    blueprint: bp => {
+      // ── Service mesh — transport security is governed. Strict mTLS is the
+      //    floor: every service-to-service call is mutually authenticated and
+      //    encrypted, and a consuming dev cannot weaken it. ──
+      const mesh = bp.add(
+        ServiceMesh({id: 'mesh'}).withMtlsMode('strict'), // guardrail
+      );
 
-// ── Service Mesh ───────────────────────────────────────────────────────────────
+      // ── Identity provider — account security is governed. Minimum password
+      //    length and mandatory MFA are locked posture; the app only gets to
+      //    name its user directory (the withUserDirectory operation). ──
+      const idp = bp.add(
+        IdentityProvider({id: 'idp'})
+          .withPasswordPolicy({minLength: 12}) // guardrail
+          .withMfaConfiguration('ON'), // guardrail
+      );
 
-export const serviceMesh = ServiceMesh.create({
-  id: 'service-mesh',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Service Mesh',
-});
+      return {mesh, idp};
+    },
 
-// ── Fractal ────────────────────────────────────────────────────────────────────
-
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder().withValue('basic-security').build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([...serviceMesh.components])
-  .build();
+    // ── OPERATIONS — application-level verbs only. What the APP decides: the
+    //    name of the user directory it owns. The security posture itself
+    //    (mTLS / password policy / MFA) is architect-governed and not exposed. ──
+    operations: s => ({
+      /** The application names the user directory it owns. */
+      withUserDirectory: (name: string) =>
+        s.idp.set('userDirectoryName', name),
+    }),
+  });
+}

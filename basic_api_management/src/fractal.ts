@@ -1,56 +1,84 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Defines a cloud-agnostic Fractal (blueprint) for API Management:
+ * This is a vendor-AGNOSTIC Fractal: the blueprint references only the abstract
+ * Component (APIManagement.ApiGateway). It NEVER names a vendor or an offer —
+ * those are chosen later when a LiveSystem is built (see index.ts). Add a new
+ * gateway vendor to the catalogue tomorrow and this Fractal supports it
+ * unchanged.
  *
- *   PaaSApiGateway (api-gateway)
+ * This sample is the CLEAREST illustration of the GUARDRAILS vs OPERATIONS
+ * distinction, because both live on the SAME component:
  *
- * The blueprint declares a single API Gateway component.
- * No cloud-provider details appear here — the blueprint can be satisfied
- * by AWS CloudFront, Azure API Management, or GCP API Gateway.
+ *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
+ *     LOCKED governance: a consuming dev cannot override it. These are
+ *     INFRA/SECURITY parameters of the gateway itself — whether it is
+ *     HTTPS-only, its global rate limit, its CORS allow-list. They describe how
+ *     the gateway is *governed*, not what the app exposes through it.
+ *   - OPERATIONS — the typed Interface a consuming dev uses. Here there is ONE,
+ *     and it is purely APPLICATION-level: `withRoute(r)` lets the app declare a
+ *     route it exposes (path → upstream). The app owns its routes; the architect
+ *     owns the security posture. A route is app intent, never an infra knob.
+ *
+ * The split in one line: httpsOnly / rateLimit / cors are GUARDRAILS (locked by
+ * the architect); routes are the APP's (declared via the withRoute operation).
+ *
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
+import {createFractal, ApiGateway} from '@fractal_cloud/sdk/model';
 
-import {
-  BoundedContext,
-  Fractal,
-  KebabCaseString,
-  OwnerId,
-  OwnerType,
-  PaaSApiGateway,
-  Version,
-} from '@fractal_cloud/sdk';
+/**
+ * A single route the application exposes through the gateway. This is the
+ * app-level vocabulary of the operation — `path` and (optionally) the HTTP
+ * `methods` and the `upstream` service the gateway forwards to. No vendor or
+ * infra knobs appear here: those are guardrails, set by the architect.
+ */
+export type Route = {
+  path: string;
+  methods?: string[];
+  upstream?: string;
+};
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'wizard',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'wizard').build())
-  .build();
+/**
+ * Author the "governed API gateway" Fractal. Returns a reusable, immutable
+ * Fractal: `.specialize()` never mutates it, so it is safe to author once and
+ * instantiate many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-api-management',
+    version: {major: 1, minor: 0, patch: 0},
+    description: 'Governed API gateway: HTTPS-only, rate-limited, CORS-locked.',
+    boundedContextId,
+    blueprint: bp => {
+      // ── API gateway — its SECURITY POSTURE is governed by the architect.
+      //    These three guardrails are LOCKED: a consuming dev specializing this
+      //    Fractal cannot weaken them. They are infra/security PARAMETERS of the
+      //    gateway, not anything the application gets to decide. ──
+      const gateway = bp.add(
+        ApiGateway({id: 'api-gateway'})
+          .withHttpsOnly(true) // guardrail: never serve plain HTTP
+          .withRateLimit({requestsPerSecond: 1000}) // guardrail: global throttle
+          .withCors({allowOrigins: ['https://acme.com']}), // guardrail: CORS allow-list
+      );
 
-// ── API Gateway ────────────────────────────────────────────────────────────────
+      return {gateway};
+    },
 
-export const gateway = PaaSApiGateway.create({
-  id: 'api-gateway',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'API Gateway',
-});
-
-// ── Fractal ────────────────────────────────────────────────────────────────────
-
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder()
-          .withValue('basic-api-management')
-          .build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([...gateway.components])
-  .build();
+    // ── OPERATIONS — application-level verbs only. The single op here is
+    //    `withRoute`: the APP declares a route it exposes (path → upstream). It
+    //    appends to the gateway's `routes` list — each call adds one route. This
+    //    is the canonical app-level operation: routes are the app's intent, in
+    //    contrast to the architect's locked security guardrails above. ──
+    operations: s => ({
+      /** Expose one application route through the gateway (path → upstream). */
+      withRoute: (r: Route) => s.gateway.append('routes', r),
+    }),
+  });
+}

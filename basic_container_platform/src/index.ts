@@ -1,76 +1,110 @@
 /**
- * index.ts
+ * index.ts — the DEV team consumes the governed Fractal.
  *
- * Entry point for the basic container platform sample.
+ * The dev never authors infrastructure: they (1) specialize the Fractal through
+ * its typed Interface (the dev-open ops only — guardrails are locked), then
+ * (2) build a LiveSystem by SELECTING, per component, one concrete offer from
+ * the open Catalogue. Selection is the ONLY place a vendor is named.
  *
- * Select the target cloud provider at runtime via the CLOUD_PROVIDER environment
- * variable. Only the selected provider's live system is instantiated, so only
- * that provider's credentials and parameters need to be set.
- *
- * Supported values: aws (default) | azure | gcp
- *
- * Common environment variables (all providers):
- *   SERVICE_ACCOUNT_ID     – Fractal Cloud service account ID
- *   SERVICE_ACCOUNT_SECRET – Fractal Cloud service account secret
- *   OWNER_ID               – UUID of the Fractal Cloud owner
- *   ENVIRONMENT_NAME       – kebab-case environment name, e.g. "dev"
- *
- * AWS-specific:
- *   ECS_EXECUTION_ROLE_ARN – (optional) IAM execution role ARN for ECS tasks
- *   ECS_TASK_ROLE_ARN      – (optional) IAM task role ARN for the API workload
- *
- * Azure-specific:
- *   AZURE_LOCATION         – (optional) Azure region, default "westeurope"
- *   AZURE_RESOURCE_GROUP   – (optional) Azure resource group name, default "my-resource-group"
- *
- * GCP-specific:
- *   GCP_REGION             – (optional) GCP region, default "europe-west1"
+ * Offer selection is per-component, so a single LiveSystem can mix vendors and
+ * delivery models freely. Here the whole platform targets one provider, chosen
+ * by CLOUD_PROVIDER (aws | azure | gcp; default aws) — swap the env var to
+ * retarget the SAME Fractal at a different cloud, untouched.
  */
+import {authorFractal} from './fractal';
+import {
+  deploy,
+  AwsVpc,
+  AwsSubnet,
+  AwsSecurityGroup,
+  Eks,
+  EcsService,
+  AzureVnet,
+  AzureSubnet,
+  AzureNsg,
+  Aks,
+  AzureContainerApp,
+  GcpVpc,
+  GcpSubnet,
+  GcpFirewall,
+  Gke,
+  CloudRun,
+} from '@fractal_cloud/sdk/model';
 
-import {ServiceAccountCredentials, ServiceAccountId} from '@fractal_cloud/sdk';
-import {fractal} from './fractal';
-import {getLiveSystem as getAws} from './aws_live_system';
-import {getLiveSystem as getAzure} from './azure_live_system';
-import {getLiveSystem as getGcp} from './gcp_live_system';
+type Provider = 'aws' | 'azure' | 'gcp';
 
-const providers = {
-  aws: getAws,
-  azure: getAzure,
-  gcp: getGcp,
-} as const;
-
-type ProviderKey = keyof typeof providers;
-
-const providerKey = (process.env['CLOUD_PROVIDER'] ?? 'aws') as ProviderKey;
-
-if (!(providerKey in providers)) {
-  console.error(
-    `Unknown CLOUD_PROVIDER "${providerKey}". Valid values: ${Object.keys(providers).join(', ')}`,
-  );
-  process.exit(1);
-}
-
-const credentials = ServiceAccountCredentials.getBuilder()
-  .withId(
-    ServiceAccountId.getBuilder()
-      .withValue(process.env['SERVICE_ACCOUNT_ID']!)
-      .build(),
-  )
-  .withSecret(process.env['SERVICE_ACCOUNT_SECRET']!)
-  .build();
-
-const liveSystem = providers[providerKey]();
-
-async function main() {
-  await fractal.deploy(credentials);
-  await liveSystem.deploy(credentials);
-  if (process.env['FRACTAL_RESULT_PATH']) {
-    const {writeFileSync} = await import('fs');
-    writeFileSync(
-      process.env['FRACTAL_RESULT_PATH']!,
-      JSON.stringify({liveSystemId: liveSystem.id.toString(), components: []}) + '\n',
-    );
+// Per-component offer selection. Each branch is a coherent single-vendor system:
+// network + subnet + security group + managed cluster + the two workloads. The
+// keys are the blueprint component IDs; the compiler enforces that each selected
+// offer satisfies its slot's Component.
+function selectionFor(provider: Provider) {
+  switch (provider) {
+    case 'azure':
+      return {
+        'main-network': AzureVnet({}),
+        'private-subnet': AzureSubnet({}),
+        'app-sg': AzureNsg({location: 'westeurope', resourceGroup: 'rg-cp'}),
+        'app-cluster': Aks({}),
+        'web-workload': AzureContainerApp({resourceGroup: 'rg-cp'}),
+        'api-workload': AzureContainerApp({resourceGroup: 'rg-cp'}),
+      };
+    case 'gcp':
+      return {
+        'main-network': GcpVpc({}),
+        'private-subnet': GcpSubnet({}),
+        'app-sg': GcpFirewall({}),
+        'app-cluster': Gke({}),
+        'web-workload': CloudRun({region: 'europe-west1'}),
+        'api-workload': CloudRun({region: 'europe-west1'}),
+      };
+    case 'aws':
+    default:
+      return {
+        'main-network': AwsVpc({}),
+        'private-subnet': AwsSubnet({}),
+        'app-sg': AwsSecurityGroup({}),
+        'app-cluster': Eks({}),
+        'web-workload': EcsService({launchType: 'FARGATE'}),
+        'api-workload': EcsService({launchType: 'FARGATE'}),
+      };
   }
 }
 
-main().catch(console.error);
+async function main() {
+  const provider = (process.env['CLOUD_PROVIDER'] ?? 'aws') as Provider;
+
+  // 1. Specialize through the Interface (dev-open ops only). Immutable: the
+  //    authored Fractal is never mutated, so it stays reusable.
+  // 2. Build the LiveSystem by selecting an offer per component.
+  const liveSystem = authorFractal()
+    .specialize()
+    // Application-level operations: the app picks its images + replica counts.
+    .withWebImage('nginx:alpine')
+    .withWebReplicas(2)
+    .withApiImage('registry.redhat.io/ubi9/httpd-24:latest')
+    .withApiReplicas(2)
+    .toLiveSystem({
+      name: 'basic-container-platform',
+      environment: {
+        ownerType: 'Personal',
+        ownerId: process.env['OWNER_ID'] ?? '',
+        name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
+      },
+      select: selectionFor(provider),
+    });
+
+  // 3. Deploy: submit the LiveSystem and wait until Active (wait-mode logs).
+  await deploy(
+    liveSystem,
+    {
+      clientId: process.env['SERVICE_ACCOUNT_ID']!,
+      clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
+    },
+    {mode: 'wait'},
+  );
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

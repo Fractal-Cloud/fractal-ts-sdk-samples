@@ -1,87 +1,96 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Defines a cloud-agnostic Fractal (blueprint) for a storage workload:
+ * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
+ * Components (Storage.ObjectStorage, Storage.RelationalDbms,
+ * Storage.RelationalDatabase). It NEVER names a vendor or an offer — those are
+ * chosen later, per component, when a LiveSystem is built (see index.ts). Add a
+ * new vendor to the catalogue tomorrow and this Fractal supports it unchanged.
  *
- *   RelationalDbms (main-dbms)
- *     └── RelationalDatabase (app-db) — DBMS dep auto-wired
+ * Two kinds of specialization live here:
+ *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
+ *     LOCKED: a consuming dev cannot override it. These are infra/engine
+ *     PARAMETERS (encryption, versioning, backups, HA, engine version, storage
+ *     class, charset, collation, ...).
+ *   - OPERATIONS — the typed Interface a consuming dev uses. These are
+ *     APPLICATION-level verbs (what the app decides — its folders, its schemas),
+ *     NOT pass-through setters for infra/engine parameters. Operations carry the
+ *     app's intent into neutral params; they never expose vendor/engine knobs.
  *
- *   FilesAndBlobs (app-storage)
- *
- * The blueprint declares a PostgreSQL-compatible DBMS with one database
- * and a standalone object storage bucket. No cloud-provider details
- * appear here — the blueprint can be satisfied by Azure or GCP.
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
-
 import {
-  BoundedContext,
-  FilesAndBlobs,
-  Fractal,
-  KebabCaseString,
-  OwnerId,
-  OwnerType,
-  RelationalDatabase,
+  createFractal,
+  ObjectStorage,
   RelationalDbms,
-  Version,
-} from '@fractal_cloud/sdk';
+  RelationalDatabase,
+} from '@fractal_cloud/sdk/model';
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'reusable-templates',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'wizard').build())
-  .build();
+/**
+ * Author the "governed storage" Fractal. Returns a reusable, immutable Fractal:
+ * `.specialize()` never mutates it, so it is safe to author once and instantiate
+ * many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-storage',
+    version: {major: 1, minor: 0, patch: 0},
+    description: 'Governed storage: an uploads bucket + a relational database.',
+    boundedContextId,
+    blueprint: bp => {
+      // ── Uploads bucket — security posture + storage class are governed. ──
+      const uploads = bp.add(
+        ObjectStorage({id: 'uploads'})
+          .withEncryption('at-rest') // guardrail: always encrypted
+          .withPublicAccess(false) // guardrail: never public
+          .withVersioningEnabled(true) // guardrail: keep object history
+          .withRetentionDays(90) // guardrail: minimum retention
+          .withStorageClass('standard'), // guardrail: infra param, not app's choice
+      );
 
-// ── Relational Database ──────────────────────────────────────────────────────
+      // ── Database engine — capacity, HA, backups and engine version governed.
+      //    The logical databases themselves are declared by the application via
+      //    the withDatabases operation (each becomes a RelationalDatabase
+      //    component emitted by the selected DBMS offer). ──
+      const dbms = bp.add(
+        RelationalDbms({id: 'app-dbms'})
+          .withHighAvailability('zone-redundant') // guardrail
+          .withBackupRetentionDays(30) // guardrail
+          .withStorageGb(100) // guardrail
+          .withEngineVersion('16'), // guardrail: infra param, not app's choice
+      );
 
-const appDb = RelationalDatabase.create({
-  id: 'app-db',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Application Database',
-  description: 'Primary application database with UTF-8 encoding',
-  collation: 'en_US.utf8',
-  charset: 'UTF8',
-});
+      return {uploads, dbms};
+    },
 
-// ── Relational DBMS (database dep auto-wired into app-db) ────────────────────
-
-export const dbms = RelationalDbms.create({
-  id: 'main-dbms',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Main PostgreSQL DBMS',
-  description: 'PostgreSQL 15 server hosting the application database',
-  dbVersion: '15',
-}).withDatabases([appDb]);
-
-// ── Object Storage ───────────────────────────────────────────────────────────
-
-export const appStorage = FilesAndBlobs.create({
-  id: 'app-storage',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Application Storage',
-  description: 'Object storage for application uploads and static assets',
-});
-
-// ── Fractal ──────────────────────────────────────────────────────────────────
-
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder().withValue('basic-storage').build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([
-    // DBMS + database (DBMS dep auto-wired into the database)
-    dbms.dbms,
-    ...dbms.databases.map(db => db.component),
-    // Object storage (standalone, no dependencies)
-    appStorage.component,
-  ])
-  .build();
+    // ── OPERATIONS — application-level verbs only. What the APP decides: the
+    //    folders it writes to, and the databases it owns (by name). Infra/engine
+    //    parameters (charset/collation/version/...) are architect guardrails. ──
+    operations: s => ({
+      /** The application's bucket folder layout. */
+      withFolders: (folders: string[]) => s.uploads.set('folders', folders),
+      /**
+       * The databases the application owns, by name. Each is added as a
+       * first-class RelationalDatabase component under the DBMS and emitted by
+       * the selected DBMS offer in its own vendor family (no separate offer to
+       * pick). charset/collation are architect-governed defaults.
+       */
+      withDatabases: (names: string[]) => {
+        const adds = names.map(name =>
+          s.dbms.addChild(
+            RelationalDatabase({id: name})
+              .withCharset('UTF8')
+              .withCollation('en_US.utf8'),
+          ),
+        );
+        return st => adds.reduce((acc, add) => add(acc), st);
+      },
+    }),
+  });
+}

@@ -1,95 +1,93 @@
 /**
- * fractal.ts
+ * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * Defines a cloud-agnostic Fractal (blueprint) for a BigData workload:
+ * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
+ * Components (BigData.ComputeCluster, BigData.DataProcessingJob,
+ * BigData.MlExperiment, BigData.Datalake). It NEVER names a vendor or an offer —
+ * those are chosen later, per component, when a LiveSystem is built (see
+ * index.ts). Add a new vendor to the catalogue tomorrow and this Fractal
+ * supports it unchanged.
  *
- *   DistributedDataProcessing (analytics-platform)
- *     ├── ComputeCluster (spark-cluster)     — platform dep auto-wired
- *     ├── DataProcessingJob (etl-job)        — platform dep auto-wired
- *     └── MlExperiment (training-exp)        — platform dep auto-wired
+ * Two kinds of specialization live here:
+ *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
+ *     LOCKED: a consuming dev cannot override it. These are infra/capacity
+ *     PARAMETERS (max workers, auto-termination, retries, versioning, ...) —
+ *     governance the platform team owns.
+ *   - OPERATIONS — the typed Interface a consuming dev uses. These are
+ *     APPLICATION-level verbs (what the app decides — what it calls its cluster,
+ *     when its job runs, what it names its experiment), NOT pass-through setters
+ *     for infra parameters. Operations carry the app's intent into neutral
+ *     params; they never expose vendor/capacity knobs.
  *
- * The blueprint declares a Databricks workspace with a Spark cluster,
- * an ETL job, and an MLflow experiment.
- * No cloud-provider details appear here — the blueprint can be satisfied
- * by AWS, Azure, or GCP Databricks.
+ * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
-
 import {
-  BoundedContext,
+  createFractal,
   ComputeCluster,
   DataProcessingJob,
-  DistributedDataProcessing,
-  Fractal,
-  KebabCaseString,
   MlExperiment,
-  OwnerId,
-  OwnerType,
-  Version,
-} from '@fractal_cloud/sdk';
+  Datalake,
+} from '@fractal_cloud/sdk/model';
 
-// ── Bounded Context ────────────────────────────────────────────────────────────
+const boundedContextId = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['BC_NAME'] ?? 'wizard',
+};
 
-export const bcId = BoundedContext.Id.getBuilder()
-  .withOwnerType(OwnerType.Personal)
-  .withOwnerId(OwnerId.getBuilder().withValue(process.env['OWNER_ID']!).build())
-  .withName(KebabCaseString.getBuilder().withValue(process.env['BC_NAME'] ?? 'wizard').build())
-  .build();
+/**
+ * Author the "governed big data" Fractal. Returns a reusable, immutable Fractal:
+ * `.specialize()` never mutates it, so it is safe to author once and instantiate
+ * many times (see index.ts).
+ */
+export function authorFractal() {
+  return createFractal({
+    id: 'basic-big-data',
+    version: {major: 1, minor: 0, patch: 0},
+    description:
+      'Governed data platform: a Spark cluster, a scheduled ETL job, an ML ' +
+      'experiment tracker, and a versioned data lake.',
+    boundedContextId,
+    blueprint: bp => {
+      // ── Compute cluster — capacity + lifecycle are governed. The app may name
+      //    the cluster (withClusterName op), but never resize it. ──
+      const cluster = bp.add(
+        ComputeCluster({id: 'analytics-cluster'})
+          .withMaxWorkers(10) // guardrail: capacity ceiling
+          .withAutoTerminationMinutes(30), // guardrail: idle shutdown
+      );
 
-// ── Children ───────────────────────────────────────────────────────────────────
+      // ── ETL job — retry policy is governed; cannot run before the cluster.
+      //    The app owns the schedule (withJobSchedule op). ──
+      const job = bp.add(
+        DataProcessingJob({id: 'etl-job'})
+          .withMaxRetries(3) // guardrail: retry policy
+          .dependsOn(cluster), // structural: needs the cluster
+      );
 
-const sparkCluster = ComputeCluster.create({
-  id: 'spark-cluster',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Spark Cluster',
-  clusterName: 'main-spark',
-  sparkVersion: '14.3.x-scala2.12',
-});
+      // ── ML experiment tracker. The app owns its display name
+      //    (withExperimentName op); no infra guardrails to govern. ──
+      const experiment = bp.add(MlExperiment({id: 'fraud-model'}));
 
-const etlJob = DataProcessingJob.create({
-  id: 'etl-job',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'ETL Job',
-  jobName: 'daily-etl',
-  taskType: 'NOTEBOOK',
-  notebookPath: '/jobs/daily-etl',
-});
+      // ── Data lake — object versioning is governed (keep object history). ──
+      const lake = bp.add(
+        Datalake({id: 'lake'}).withVersioningEnabled(true), // guardrail
+      );
 
-const trainingExp = MlExperiment.create({
-  id: 'training-exp',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Training Experiment',
-  experimentName: 'model-training',
-});
+      return {cluster, job, experiment, lake};
+    },
 
-// ── Platform (children deps auto-wired) ────────────────────────────────────────
-
-export const platform = DistributedDataProcessing.create({
-  id: 'analytics-platform',
-  version: {major: 1, minor: 0, patch: 0},
-  displayName: 'Analytics Platform',
-})
-  .withClusters([sparkCluster])
-  .withJobs([etlJob])
-  .withExperiments([trainingExp]);
-
-// ── Fractal ──────────────────────────────────────────────────────────────────
-
-export const fractal = Fractal.getBuilder()
-  .withId(
-    Fractal.Id.getBuilder()
-      .withBoundedContextId(bcId)
-      .withName(
-        KebabCaseString.getBuilder().withValue('basic-big-data').build(),
-      )
-      .withVersion(
-        Version.getBuilder().withMajor(1).withMinor(0).withPatch(0).build(),
-      )
-      .build(),
-  )
-  .withComponents([
-    platform.platform,
-    ...platform.clusters.map(c => c.component),
-    ...platform.jobs.map(j => j.component),
-    ...platform.experiments.map(e => e.component),
-  ])
-  .build();
+    // ── OPERATIONS — application-level verbs only. What the APP decides: what it
+    //    calls its cluster, when its job runs, and what it names its experiment.
+    //    Capacity/retry/versioning are architect guardrails, not exposed here. ──
+    operations: s => ({
+      /** The name the application gives its compute cluster. */
+      withClusterName: (v: string) => s.cluster.set('clusterName', v),
+      /** The cron schedule on which the application's ETL job runs. */
+      withJobSchedule: (v: string) => s.job.set('cronSchedule', v),
+      /** The display name the application gives its ML experiment. */
+      withExperimentName: (v: string) =>
+        s.experiment.set('experimentName', v),
+    }),
+  });
+}
