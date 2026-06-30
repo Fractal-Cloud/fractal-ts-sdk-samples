@@ -17,8 +17,15 @@ A single API Gateway component. The architect locks three security guardrails on
 ```
 src/
   fractal.ts   # Architect-authored blueprint: ApiGateway with locked guardrails + withRoute operation
-  index.ts     # Dev entry point: offer selection via CLOUD_PROVIDER, then deploy
+  aws.ts       # Self-contained AWS entrypoint — copy and run
+  azure.ts     # Self-contained Azure entrypoint — copy and run
+  gcp.ts       # Self-contained GCP entrypoint — copy and run
 ```
+
+Each `src/<cloud>.ts` is a self-contained, runnable entrypoint: it specializes
+the Fractal, builds the LiveSystem, and deploys. Pick a cloud by copying and
+running its file — there is no provider dispatch. The inline `select` map is the
+only cloud-specific code; the blueprint in `fractal.ts` is identical across all.
 
 ### Blueprint / offer-selection split
 
@@ -26,24 +33,24 @@ src/
 |---------|-------------|
 | Gateway component ID, version, display name | `fractal.ts` |
 | Locked guardrails: `httpsOnly`, `rateLimit`, `cors` | `fractal.ts` |
-| Application routes (`withRoute`) | `fractal.ts` operations / `index.ts` specialization |
-| Vendor offer config (AWS region, Azure SKU/publisher, GCP) | `index.ts` — offer config |
+| Application routes (`withRoute`) | `fractal.ts` operations / per-cloud entrypoint specialization |
+| Vendor offer config (AWS region, Azure SKU/publisher, GCP) | per-cloud entrypoint — offer config |
 
 ## Selecting a provider
 
-`index.ts` reads `CLOUD_PROVIDER` and maps it to a concrete offer for the `api-gateway` component:
+Each per-cloud entrypoint maps the `api-gateway` component to a concrete offer in its inline `select` map:
 
-| `CLOUD_PROVIDER` | Offer selected | Notes |
+| Entrypoint | Offer selected | Notes |
 |-----------------|----------------|-------|
-| `aws` (default) | `AwsCloudFront` | `region: 'us-east-1'` |
-| `azure` | `AzureApiManagement` | `publisherEmail`, `sku: 'Developer'` |
-| `gcp` | `GcpApiGateway` | no extra config required |
+| `aws.ts` | `AwsCloudFront` | `region: 'us-east-1'` |
+| `azure.ts` | `AzureApiManagement` | `publisherEmail`, `sku: 'Developer'` |
+| `gcp.ts` | `GcpApiGateway` | no extra config required |
 
 ```bash
-CLOUD_PROVIDER=azure node build/src/index.js
+node build/src/azure.js
 ```
 
-The vendor-neutral CaaS offers `Ambassador` and `Traefik` are imported in `index.ts` as swap-in alternatives — swap one in to run the same governed Fractal on any Kubernetes cluster with no cloud provider.
+The vendor-neutral CaaS offers `Ambassador` and `Traefik` are available as swap-in alternatives — swap one into a `select` map to run the same governed Fractal on any Kubernetes cluster with no cloud provider.
 
 ## Environment variables
 
@@ -59,11 +66,9 @@ The vendor-neutral CaaS offers `Ambassador` and `Traefik` are imported in `index
 
 ### Provider selection
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `CLOUD_PROVIDER` | no | `aws` (default) · `azure` · `gcp` |
+Pick a provider by running its entrypoint (`aws.js` · `azure.js` · `gcp.js`) — there is no provider-selection environment variable.
 
-No additional provider-specific environment variables are required — all vendor parameters are configured inline in the `selectionFor` function in `index.ts`.
+No additional provider-specific environment variables are required — all vendor parameters are configured inline in the `select` map of each per-cloud entrypoint.
 
 ## Running
 
@@ -79,14 +84,9 @@ export SERVICE_ACCOUNT_ID=<id>
 export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 
-# AWS (default — CloudFront)
-node build/src/index.js
-
-# Azure (API Management)
-CLOUD_PROVIDER=azure node build/src/index.js
-
-# GCP (API Gateway)
-CLOUD_PROVIDER=gcp node build/src/index.js
+node build/src/aws.js      # deploy on AWS (CloudFront)
+node build/src/azure.js    # deploy on Azure (API Management)
+node build/src/gcp.js      # deploy on GCP (API Gateway)
 ```
 
 Deploy uses `mode: 'wait'` — the process streams structured log lines (`INFO` / `CHECK` / `ERROR`) until the Live System reaches Active status or fails.

@@ -27,29 +27,37 @@ src/
   fractal.ts   # Cloud-agnostic blueprint — ALL structure + guardrails.
                #   Abstract Components only (VirtualNetwork, Subnet,
                #   SecurityGroup, VirtualMachine). No vendor, no offer.
-  index.ts     # Entry point. Specializes the Fractal, then builds the
-               #   LiveSystem by per-component OFFER SELECTION (the `select`
-               #   map). CLOUD_PROVIDER picks the offer set, then deploy() runs.
+  aws.ts       # Self-contained AWS entrypoint — copy and run
+  azure.ts     # Self-contained Azure entrypoint — copy and run
+  gcp.ts       # Self-contained GCP entrypoint — copy and run
+  oci.ts       # Self-contained OCI entrypoint — copy and run
+  hetzner.ts   # Self-contained Hetzner entrypoint — copy and run
 ```
 
+Each `src/<cloud>.ts` is a self-contained, runnable entrypoint. It specializes
+the Fractal, then builds the LiveSystem by per-component OFFER SELECTION (the
+inline `select` map) and runs deploy(). Pick a cloud by copying and running its
+file — there is no provider dispatch.
+
 `fractal.ts` is the source of truth for all structural decisions (dependencies,
-traffic rules, security rules, CIDR/ingress guardrails). `index.ts` is the only
-place a vendor is named: it maps each blueprint component id to a concrete Offer
-(`AwsVpc`, `AzureVnet`, `Ec2Instance`, …) plus that offer's vendor config. The
-compiler enforces that each selected offer satisfies the Component in its slot.
-To retarget a component to another vendor, swap one line in the `select` map.
+traffic rules, security rules, CIDR/ingress guardrails). The per-cloud entrypoint
+is the only place a vendor is named: it maps each blueprint component id to a
+concrete Offer (`AwsVpc`, `AzureVnet`, `Ec2Instance`, …) plus that offer's vendor
+config. The compiler enforces that each selected offer satisfies the Component in
+its slot. To retarget a component to another vendor, swap one line in the
+`select` map.
 
 ## Selecting a provider
 
-Set `CLOUD_PROVIDER` to one of: `aws` (default) · `azure` · `gcp` · `oci` · `hetzner`
+Pick a provider by running its entrypoint: `aws.js` · `azure.js` · `gcp.js` · `oci.js` · `hetzner.js`
 
 ```bash
-CLOUD_PROVIDER=azure node build/src/index.js
+node build/src/azure.js
 ```
 
 Offer config (amiId, vmSize, machineType, shape, serverType, …) is supplied as
-literals in each provider branch of `selectionFor()` in `index.ts` — edit that
-map to change vendor parameters.
+literals in the `select` map of each per-cloud entrypoint — edit that map to
+change vendor parameters.
 
 ## Environment variables
 
@@ -60,8 +68,9 @@ map to change vendor parameters.
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
 | `ENVIRONMENT_NAME` | no | Target environment name (default: `dev`) |
 | `BC_NAME` | no | Bounded-context name (default: `wizard`) |
-| `CLOUD_PROVIDER` | no | `aws` (default) · `azure` · `gcp` · `oci` · `hetzner` |
-| `OCI_COMPARTMENT_ID` | only for `oci` | OCI compartment OCID for the security list |
+| `OCI_COMPARTMENT_ID` | only for `oci.ts` | OCI compartment OCID for the security list |
+
+Pick a provider by running its entrypoint (`aws.js` · `azure.js` · `gcp.js` · `oci.js` · `hetzner.js`) — there is no provider-selection environment variable.
 
 ## Running
 
@@ -77,21 +86,14 @@ export SERVICE_ACCOUNT_ID=<id>
 export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 
-# AWS (default)
-node build/src/index.js
+node build/src/aws.js      # deploy on AWS
+node build/src/azure.js    # deploy on Azure
+node build/src/gcp.js      # deploy on GCP
+node build/src/hetzner.js  # deploy on Hetzner
 
-# Azure
-CLOUD_PROVIDER=azure node build/src/index.js
-
-# GCP
-CLOUD_PROVIDER=gcp node build/src/index.js
-
-# OCI
+# OCI — set the compartment OCID first
 export OCI_COMPARTMENT_ID=ocid1.compartment...
-CLOUD_PROVIDER=oci node build/src/index.js
-
-# Hetzner
-CLOUD_PROVIDER=hetzner node build/src/index.js
+node build/src/oci.js      # deploy on OCI
 ```
 
 The sample deploys in `wait` mode — it blocks until the live system is Active

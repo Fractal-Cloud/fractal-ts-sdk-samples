@@ -9,11 +9,11 @@ Unlike fire-and-forget, this sample **blocks** until the Live System reaches `Ac
 | File | Role |
 |---|---|
 | `src/fractal.ts` | The architect authors the governed, vendor-agnostic Fractal **once**: abstract Components, locked guardrails (CIDR blocks, ingress rules, links), and structural dependencies. No vendor names appear here. |
-| `src/index.ts` | The CI/CD entry point: selects one concrete AWS offer per component, builds the Live System, then deploys in `wait` mode — blocks until Active, exits non-zero on failure. |
+| `src/aws.ts` | The CI/CD entry point: a self-contained, runnable file you copy and run. It selects one concrete AWS offer per component, builds the Live System, then deploys in `wait` mode — blocks until Active, exits non-zero on failure. |
 
 ## What gets deployed
 
-A basic IaaS network scaffold on AWS, selected via per-component offer mapping in `src/index.ts`:
+A basic IaaS network scaffold on AWS, selected via per-component offer mapping in `src/aws.ts`:
 
 | Blueprint component | Selected AWS offer | Governed guardrails |
 |---|---|---|
@@ -27,7 +27,7 @@ The blueprint also wires a **traffic link**: `web-server → api-server` on TCP 
 
 ## Offer-selection model
 
-The vendor is chosen **at Live System build time**, not at blueprint authoring time. In `src/index.ts` a `select` map assigns one concrete offer per component ID:
+The vendor is chosen **at Live System build time**, not at blueprint authoring time. In `src/aws.ts` a `select` map assigns one concrete offer per component ID:
 
 ```ts
 const select = {
@@ -71,7 +71,7 @@ export SERVICE_ACCOUNT_ID=<your-service-account-id>
 export SERVICE_ACCOUNT_SECRET=<your-service-account-secret>
 export OWNER_ID=<your-owner-id>
 
-node build/src/index.js
+node build/src/aws.js      # deploy on AWS
 ```
 
 The process emits structured `wait`-mode log lines and exits when infrastructure is Active:
@@ -118,11 +118,11 @@ jobs:
           SERVICE_ACCOUNT_SECRET: ${{ secrets.FRACTAL_SERVICE_ACCOUNT_SECRET }}
           OWNER_ID: ${{ secrets.FRACTAL_OWNER_ID }}
           ENVIRONMENT_NAME: prod
-        run: node build/src/index.js
+        run: node build/src/aws.js
 ```
 
 The pipeline step fails automatically if deployment fails or times out, preventing any downstream steps from running on broken infrastructure.
 
 ## Architecture notes
 
-`fractal.ts` is cloud-agnostic: all structural wiring (dependencies, links, guardrails) lives there and is locked at design time. `index.ts` contains the only vendor-specific code — the offer selection map. This separation means the same Fractal can target any provider by updating the `select` map without touching the blueprint.
+`fractal.ts` is cloud-agnostic: all structural wiring (dependencies, links, guardrails) lives there and is locked at design time. `aws.ts` is a self-contained entrypoint you copy and run; its inline `select` map is the only vendor-specific code. This separation means the same Fractal can target any provider by writing a new per-cloud entrypoint with a different `select` map, without touching the blueprint.

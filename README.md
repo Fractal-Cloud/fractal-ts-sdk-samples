@@ -25,28 +25,28 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 | [basic_onprem_vmware](./basic_onprem_vmware) | VMware | wait | Port Group + VLAN + two vSphere VMs |
 | [basic_onprem_openshift](./basic_onprem_openshift) | OpenShift | wait | NetworkPolicy + two Workloads + Service/Route + PersistentVolume + KubeVirt VM |
 
-> Deploy mode is set per sample in its `index.ts` (`deploy(ls, creds, {mode})`). Check the sample if you need fire-and-forget instead of wait.
+> Deploy mode is set per sample in each `src/<cloud>.ts` (`deploy(ls, creds, {mode})`). Check the file if you need fire-and-forget instead of wait.
 
 ## Architecture
 
-Every sample follows the same two-file layout:
+Every sample has a shared, cloud-agnostic Fractal plus one **self-contained,
+runnable file per target cloud**:
 
 ```
 src/
   fractal.ts   # Cloud-agnostic blueprint — authors abstract Components,
                #   their guardrails (locked params), dependencies and links.
                #   ALL structure lives here. No vendor types.
-  index.ts     # Entry point. Specializes the Fractal, then builds a LiveSystem
-               #   by per-component OFFER SELECTION (the `select` map). For
-               #   multi-provider samples, CLOUD_PROVIDER picks which offer set
-               #   to select. Then calls deploy(...).
+  aws.ts       # Self-contained entrypoint: specializes the Fractal, selects
+  azure.ts     #   the AWS / Azure / GCP / … offers, builds the LiveSystem,
+  gcp.ts       #   and deploys. COPY the one for your cloud and run it.
 ```
 
 **`fractal.ts` is the single source of truth** for all structural decisions: dependencies between components, traffic rules, security group rules, and resource hierarchy. The blueprint references abstract Components only (`VirtualNetwork`, `Workload`, `ObjectStorage`, …) — never a vendor.
 
-**`index.ts` names the vendors.** It maps each blueprint component id to a concrete Offer (`AwsVpc`, `AzureVnet`, `Ec2Instance`, …) carrying that offer's vendor config. The compiler enforces that each selected offer satisfies the Component in that slot. To retarget a component to another vendor, swap one line in the `select` map — the Fractal is never touched.
+**Each `src/<cloud>.ts` names the vendor.** It is a complete, runnable program: it imports the Fractal, declares `environment` + `credentials`, and maps each blueprint component id to a concrete Offer (`AwsVpc`, `AzureVnet`, `Ec2Instance`, …) in an inline `select` map carrying that offer's vendor config. The compiler enforces that each offer satisfies the Component in that slot. **To adopt the Fractal on a cloud, copy that one file** — no driver, no env-var routing, no shared registry to untangle. The inline `select` map is the only cloud-specific code; `basic_storage/src/mixed.ts` shows one LiveSystem spanning vendors.
 
-For multi-provider samples, the `CLOUD_PROVIDER` environment variable selects which offer set to use at runtime. Only that provider's environment variables need to be set. Self-hosted CaaS samples (observability, security) have no provider dispatch — they select vendor-neutral offers directly.
+Self-hosted CaaS samples (observability, security) and on-prem samples (vmware, openshift) have a single file targeting their platform.
 
 ## Running a sample
 
@@ -56,15 +56,12 @@ npm install
 npm run compile
 ```
 
-Set the common variables and any provider-specific ones (see the sample's README), then:
+Set the common variables and any provider-specific ones (see the sample's README), then run the file for your cloud:
 
 ```bash
-# Deploy on AWS (default for multi-provider samples)
-node build/src/index.js
-
-# Deploy on a different provider
-CLOUD_PROVIDER=azure node build/src/index.js
-CLOUD_PROVIDER=gcp   node build/src/index.js
+node build/src/aws.js      # deploy on AWS
+node build/src/azure.js    # deploy on Azure
+node build/src/gcp.js      # deploy on GCP
 ```
 
 ### Provider support per sample
