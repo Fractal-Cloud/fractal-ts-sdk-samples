@@ -69,8 +69,7 @@ export function authorFractal() {
     //    (mTLS / password policy / MFA) is architect-governed and not exposed. ──
     operations: s => ({
       /** The application names the user directory it owns. */
-      withUserDirectory: (name: string) =>
-        s.idp.set('userDirectoryName', name),
+      withUserDirectory: (name: string) => s.idp.set('userDirectoryName', name),
     }),
   });
 }
