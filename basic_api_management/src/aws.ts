@@ -23,7 +23,11 @@ async function main() {
     // Application-level operations: the app declares the routes it exposes. The
     // architect's security guardrails (httpsOnly / rateLimit / cors) are locked
     // and untouchable here.
-    .withRoute({path: '/orders', methods: ['GET', 'POST'], upstream: 'orders-svc'})
+    .withRoute({
+      path: '/orders',
+      methods: ['GET', 'POST'],
+      upstream: 'orders-svc',
+    })
     .withRoute({path: '/users', methods: ['GET'], upstream: 'users-svc'})
     .toLiveSystem({
       name: 'basic-api-management',

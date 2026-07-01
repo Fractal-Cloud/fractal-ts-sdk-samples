@@ -86,8 +86,7 @@ export function authorFractal() {
       /** The cron schedule on which the application's ETL job runs. */
       withJobSchedule: (v: string) => s.job.set('cronSchedule', v),
       /** The display name the application gives its ML experiment. */
-      withExperimentName: (v: string) =>
-        s.experiment.set('experimentName', v),
+      withExperimentName: (v: string) => s.experiment.set('experimentName', v),
     }),
   });
 }

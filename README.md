@@ -24,6 +24,7 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 | [basic_security](./basic_security) | self-hosted (CaaS) | wait | Service Mesh (Ocelot) |
 | [basic_onprem_vmware](./basic_onprem_vmware) | VMware | wait | Port Group + VLAN + two vSphere VMs |
 | [basic_onprem_openshift](./basic_onprem_openshift) | OpenShift | wait | NetworkPolicy + two Workloads + Service/Route + PersistentVolume + KubeVirt VM |
+| [basic_environment](./basic_environment) | Azure | wait | **Environment management**: init a management + operational environment (cloud agent, secret, CI/CD profile) via `deployEnvironment`, then deploy a LiveSystem into the operational env |
 
 > Deploy mode is set per sample in each `src/<cloud>.ts` (`deploy(ls, creds, {mode})`). Check the file if you need fire-and-forget instead of wait.
 

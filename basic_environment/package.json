@@ -1,9 +1,9 @@
 {
-  "name": "basic-security",
+  "name": "basic-environment",
   "version": "0.0.1",
-  "description": "Fractal + CaaS Live System sample — basic Security (Ocelot service mesh)",
-  "main": "build/src/index.js",
-  "types": "build/src/index.d.ts",
+  "description": "Environment management sample — init a management + operational environment (cloud agents, secrets, CI/CD), then deploy a LiveSystem into the operational environment",
+  "main": "build/src/azure.js",
+  "types": "build/src/azure.d.ts",
   "files": [
     "build/src"
   ],
@@ -17,12 +17,12 @@
     "pretest": "npm run compile",
     "posttest": "npm run lint"
   },
+  "dependencies": {
+    "@fractal_cloud/sdk": "^2.1.0"
+  },
   "devDependencies": {
     "@types/node": "^22.7.5",
     "gts": "^7.0.0",
     "typescript": "^5.6.3"
-  },
-  "dependencies": {
-    "@fractal_cloud/sdk": "^2.1.0"
   }
 }
