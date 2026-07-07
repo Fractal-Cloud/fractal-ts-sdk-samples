@@ -48,7 +48,19 @@ async function main() {
       },
     });
 
-  await deploy(liveSystem, credentials, {mode: 'wait'});
+  const bc = liveSystem.boundedContext;
+  console.log(
+    'LIVE_SYSTEM_ID=' +
+      [
+        bc.ownerType ?? 'Personal',
+        bc.ownerId ?? '',
+        bc.name ?? '',
+        liveSystem.name,
+      ].join('/'),
+  );
+  await deploy(liveSystem, credentials, {
+    mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
+  });
 }
 
 main().catch(err => {
