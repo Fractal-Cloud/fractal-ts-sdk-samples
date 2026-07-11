@@ -53,12 +53,12 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Network — the VPC's address space is a governed guardrail. ──
       const network = bp.add(
-        VirtualNetwork({id: 'main-network'}).withCidrBlock('10.0.0.0/16'),
+        VirtualNetwork({id: 'main-network', displayName: 'Main Network'}).withCidrBlock('10.0.0.0/16'),
       );
 
       // ── Public subnet — carved from the VPC; cannot exist without it. ──
       const subnet = bp.add(
-        Subnet({id: 'public-subnet'})
+        Subnet({id: 'public-subnet', displayName: 'Public Subnet'})
           .withCidrBlock('10.0.1.0/24') // guardrail: subnet range
           .dependsOn(network), // structural dependency: subnet → VPC
       );
@@ -67,7 +67,7 @@ export function authorFractal() {
       //    the VPC, so it depends on it. SSH (22) for ops + HTTP (80) for the
       //    web tier are the only inbound rules permitted. ──
       const webSg = bp.add(
-        SecurityGroup({id: 'web-sg'})
+        SecurityGroup({id: 'web-sg', displayName: 'Web Security Group'})
           .dependsOn(network)
           .withIngressRules([
             {fromPort: 22, toPort: 22, sourceCidr: '0.0.0.0/0'},
@@ -77,10 +77,10 @@ export function authorFractal() {
 
       // ── Compute — both VMs live in the public subnet. ──
       const apiServer = bp.add(
-        VirtualMachine({id: 'api-server'}).dependsOn(subnet),
+        VirtualMachine({id: 'api-server', displayName: 'API Server'}).dependsOn(subnet),
       );
       const webServer = bp.add(
-        VirtualMachine({id: 'web-server'}).dependsOn(subnet),
+        VirtualMachine({id: 'web-server', displayName: 'Web Server'}).dependsOn(subnet),
       );
 
       // ── Link: web-server → api-server on TCP 8080. The blueprint owns all

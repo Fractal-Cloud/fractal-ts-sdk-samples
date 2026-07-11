@@ -23,7 +23,7 @@ export function authorFractal() {
     boundedContextId,
     blueprint: bp => {
       const uploads = bp.add(
-        ObjectStorage({id: 'uploads'})
+        ObjectStorage({id: 'uploads', displayName: 'Uploads Bucket'})
           .withEncryption('at-rest')
           .withPublicAccess(false),
       );

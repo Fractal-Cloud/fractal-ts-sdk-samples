@@ -46,7 +46,7 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Uploads bucket — security posture + storage class are governed. ──
       const uploads = bp.add(
-        ObjectStorage({id: 'uploads'})
+        ObjectStorage({id: 'uploads', displayName: 'Uploads Bucket'})
           .withEncryption('at-rest') // guardrail: always encrypted
           .withPublicAccess(false) // guardrail: never public
           .withVersioningEnabled(true) // guardrail: keep object history
@@ -59,7 +59,10 @@ export function authorFractal() {
       //    the withDatabases operation (each becomes a RelationalDatabase
       //    component emitted by the selected DBMS offer). ──
       const dbms = bp.add(
-        RelationalDbms({id: 'app-dbms'})
+        RelationalDbms({
+          id: 'app-dbms',
+          displayName: 'Application Database Engine',
+        })
           .withHighAvailability('zone-redundant') // guardrail
           .withBackupRetentionDays(30) // guardrail
           .withStorageGb(100) // guardrail
@@ -84,7 +87,7 @@ export function authorFractal() {
       withDatabases: (names: string[]) => {
         const adds = names.map(name =>
           s.dbms.addChild(
-            RelationalDatabase({id: name})
+            RelationalDatabase({id: name, displayName: name})
               .withCharset('UTF8')
               .withCollation('en_US.utf8'),
           ),

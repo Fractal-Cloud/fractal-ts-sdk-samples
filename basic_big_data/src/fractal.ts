@@ -52,7 +52,7 @@ export function authorFractal() {
       // ── Compute cluster — capacity + lifecycle are governed. The app may name
       //    the cluster (withClusterName op), but never resize it. ──
       const cluster = bp.add(
-        ComputeCluster({id: 'analytics-cluster'})
+        ComputeCluster({id: 'analytics-cluster', displayName: 'Analytics Cluster'})
           .withMaxWorkers(10) // guardrail: capacity ceiling
           .withAutoTerminationMinutes(30), // guardrail: idle shutdown
       );
@@ -60,18 +60,18 @@ export function authorFractal() {
       // ── ETL job — retry policy is governed; cannot run before the cluster.
       //    The app owns the schedule (withJobSchedule op). ──
       const job = bp.add(
-        DataProcessingJob({id: 'etl-job'})
+        DataProcessingJob({id: 'etl-job', displayName: 'ETL Job'})
           .withMaxRetries(3) // guardrail: retry policy
           .dependsOn(cluster), // structural: needs the cluster
       );
 
       // ── ML experiment tracker. The app owns its display name
       //    (withExperimentName op); no infra guardrails to govern. ──
-      const experiment = bp.add(MlExperiment({id: 'fraud-model'}));
+      const experiment = bp.add(MlExperiment({id: 'fraud-model', displayName: 'Fraud Detection Model'}));
 
       // ── Data lake — object versioning is governed (keep object history). ──
       const lake = bp.add(
-        Datalake({id: 'lake'}).withVersioningEnabled(true), // guardrail
+        Datalake({id: 'lake', displayName: 'Data Lake'}).withVersioningEnabled(true), // guardrail
       );
 
       return {cluster, job, experiment, lake};

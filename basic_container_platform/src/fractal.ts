@@ -57,10 +57,10 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Network topology — CIDR blocks are governed. ──
       const network = bp.add(
-        VirtualNetwork({id: 'main-network'}).withCidrBlock('10.0.0.0/16'), // guardrail
+        VirtualNetwork({id: 'main-network', displayName: 'Main Network'}).withCidrBlock('10.0.0.0/16'), // guardrail
       );
       const subnet = bp.add(
-        Subnet({id: 'private-subnet'})
+        Subnet({id: 'private-subnet', displayName: 'Private Subnet'})
           .withCidrBlock('10.0.1.0/24') // guardrail
           .dependsOn(network),
       );
@@ -68,7 +68,7 @@ export function authorFractal() {
       // ── Security posture — the ingress rules are governed: HTTP from anywhere
       //    to the web tier, internal-only traffic on 8080 to the api tier. ──
       const sg = bp.add(
-        SecurityGroup({id: 'app-sg'})
+        SecurityGroup({id: 'app-sg', displayName: 'Application Security Group'})
           .dependsOn(network)
           .withIngressRules([
             {fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'}, // guardrail
@@ -78,7 +78,7 @@ export function authorFractal() {
 
       // ── Managed cluster — node pool topology + autoscaling are governed. ──
       const cluster = bp.add(
-        ContainerPlatform({id: 'app-cluster'})
+        ContainerPlatform({id: 'app-cluster', displayName: 'Application Cluster'})
           .dependsOn(subnet)
           .withNodePools([
             {
@@ -95,10 +95,10 @@ export function authorFractal() {
       //    replica count are NOT set here: they are application choices, exposed
       //    as operations below. ──
       const api = bp.add(
-        Workload({id: 'api-workload'}).dependsOn(cluster).dependsOn(subnet),
+        Workload({id: 'api-workload', displayName: 'API Workload'}).dependsOn(cluster).dependsOn(subnet),
       );
       const web = bp.add(
-        Workload({id: 'web-workload'}).dependsOn(cluster).dependsOn(subnet),
+        Workload({id: 'web-workload', displayName: 'Web Workload'}).dependsOn(cluster).dependsOn(subnet),
       );
 
       // ── Links (structure) — membership + traffic rules, architect-owned. ──
