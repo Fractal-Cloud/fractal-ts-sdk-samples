@@ -49,14 +49,14 @@ export function authorFractal() {
       //    floor: every service-to-service call is mutually authenticated and
       //    encrypted, and a consuming dev cannot weaken it. ──
       const mesh = bp.add(
-        ServiceMesh({id: 'mesh'}).withMtlsMode('strict'), // guardrail
+        ServiceMesh({id: 'mesh', displayName: 'Service Mesh'}).withMtlsMode('strict'), // guardrail
       );
 
       // ── Identity provider — account security is governed. Minimum password
       //    length and mandatory MFA are locked posture; the app only gets to
       //    name its user directory (the withUserDirectory operation). ──
       const idp = bp.add(
-        IdentityProvider({id: 'idp'})
+        IdentityProvider({id: 'idp', displayName: 'Identity Provider'})
           .withPasswordPolicy({minLength: 12}) // guardrail
           .withMfaConfiguration('ON'), // guardrail
       );

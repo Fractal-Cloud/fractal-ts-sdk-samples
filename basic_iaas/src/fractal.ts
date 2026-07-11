@@ -53,13 +53,13 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Virtual network — address space is a governed guardrail. ──
       const network = bp.add(
-        VirtualNetwork({id: 'main-network'}).withCidrBlock('10.0.0.0/16'), // guardrail: the network's address space is fixed by the architect
+        VirtualNetwork({id: 'main-network', displayName: 'Main Network'}).withCidrBlock('10.0.0.0/16'), // guardrail: the network's address space is fixed by the architect
       );
 
       // ── Public subnet — carved from the network's CIDR; depends on it
       //    (cannot exist before the network). Its own CIDR is governed. ──
       const subnet = bp.add(
-        Subnet({id: 'public-subnet'})
+        Subnet({id: 'public-subnet', displayName: 'Public Subnet'})
           .withCidrBlock('10.0.1.0/24') // guardrail: subnet range, fixed by the architect
           .dependsOn(network), // dependency: subnet needs the network first
       );
@@ -67,7 +67,7 @@ export function authorFractal() {
       // ── Web security group — the perimeter posture is governed: inbound SSH
       //    (22) for admin and HTTP (80) for serving. Depends on the network. ──
       const securityGroup = bp.add(
-        SecurityGroup({id: 'web-sg'})
+        SecurityGroup({id: 'web-sg', displayName: 'Web Security Group'})
           .withIngressRules([
             {fromPort: 22, toPort: 22, sourceCidr: '0.0.0.0/0'}, // guardrail: allow SSH
             {fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'}, // guardrail: allow HTTP
@@ -77,13 +77,13 @@ export function authorFractal() {
 
       // ── API server — backend VM in the subnet (depends on it). ──
       const apiServer = bp.add(
-        VirtualMachine({id: 'api-server'}).dependsOn(subnet),
+        VirtualMachine({id: 'api-server', displayName: 'API Server'}).dependsOn(subnet),
       );
 
       // ── Web server — frontend VM in the subnet (depends on it); proxies to
       //    the api server. ──
       const webServer = bp.add(
-        VirtualMachine({id: 'web-server'}).dependsOn(subnet),
+        VirtualMachine({id: 'web-server', displayName: 'Web Server'}).dependsOn(subnet),
       );
 
       // ── Links (runtime relationships — distinct from dependencies). ──

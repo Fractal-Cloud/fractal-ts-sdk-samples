@@ -43,7 +43,7 @@ export function authorFractal() {
       // ── Event broker — the backbone all topics live on. The vendor (Service
       //    Bus, Pub/Sub, ...) is selected per-LiveSystem; the blueprint only
       //    declares that an abstract Broker is needed. ──
-      const broker = bp.add(Broker({id: 'event-broker'}));
+      const broker = bp.add(Broker({id: 'event-broker', displayName: 'Event Broker'}));
 
       // ── Topics — each is a first-class MessagingEntity that DEPENDS ON the
       //    broker: a topic cannot exist without its broker, so the agent
@@ -52,12 +52,12 @@ export function authorFractal() {
       //    cannot shorten the audit/replay window or let messages expire faster
       //    than policy allows. ──
       const ordersTopic = bp.add(
-        MessagingEntity({id: 'orders-topic'})
+        MessagingEntity({id: 'orders-topic', displayName: 'Orders Topic'})
           .dependsOn(broker) // existence constraint: topic needs the broker
           .withMessageRetentionHours(72), // guardrail: locked retention window
       );
       const notificationsTopic = bp.add(
-        MessagingEntity({id: 'notifications-topic'})
+        MessagingEntity({id: 'notifications-topic', displayName: 'Notifications Topic'})
           .dependsOn(broker) // existence constraint: topic needs the broker
           .withMessageRetentionHours(72), // guardrail: locked retention window
       );

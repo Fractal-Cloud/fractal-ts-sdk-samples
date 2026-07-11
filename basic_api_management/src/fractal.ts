@@ -62,7 +62,7 @@ export function authorFractal() {
       //    Fractal cannot weaken them. They are infra/security PARAMETERS of the
       //    gateway, not anything the application gets to decide. ──
       const gateway = bp.add(
-        ApiGateway({id: 'api-gateway'})
+        ApiGateway({id: 'api-gateway', displayName: 'API Gateway'})
           .withHttpsOnly(true) // guardrail: never serve plain HTTP
           .withRateLimit({requestsPerSecond: 1000}) // guardrail: global throttle
           .withCors({allowOrigins: ['https://acme.com']}), // guardrail: CORS allow-list

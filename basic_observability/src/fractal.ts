@@ -48,21 +48,21 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Monitoring — retention and scrape cadence are governed. ──
       const monitoring = bp.add(
-        Monitoring({id: 'monitoring'})
+        Monitoring({id: 'monitoring', displayName: 'Monitoring'})
           .withRetentionDays(30) // guardrail: how long metrics are kept
           .withScrapeInterval(15), // guardrail: scrape cadence in seconds
       );
 
       // ── Tracing — retention and sampling rate are governed. ──
       const tracing = bp.add(
-        Tracing({id: 'tracing'})
+        Tracing({id: 'tracing', displayName: 'Tracing'})
           .withRetentionDays(7) // guardrail: how long traces are kept
           .withSamplingRate(0.1), // guardrail: 10% trace sampling
       );
 
       // ── Logging — retention is governed. ──
       const logging = bp.add(
-        Logging({id: 'logging'}).withRetentionDays(30), // guardrail
+        Logging({id: 'logging', displayName: 'Logging'}).withRetentionDays(30), // guardrail
       );
 
       return {monitoring, tracing, logging};
