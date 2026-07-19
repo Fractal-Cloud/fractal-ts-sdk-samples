@@ -45,7 +45,8 @@ async function main() {
       select: {
         app: EcsService({launchType: 'FARGATE'}),
         idp: Cognito({}),
-        // TODO: DB on Azure — no AWS managed relational offer in the SDK yet (FRA-3025)
+        // DB on Azure: the SDK has no AWS managed relational offer yet, so the
+        // relational tier runs on Azure in this mixed-vendor LiveSystem.
         'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-data'}),
       },
     });
