@@ -1,12 +1,8 @@
 {
-  "name": "basic-api-management",
+  "name": "app-with-identity",
   "version": "0.0.1",
-  "description": "Fractal + Live System sample — basic API Management (CloudFront, Azure API Management, GCP API Gateway)",
-  "main": "build/src/index.js",
-  "types": "build/src/index.d.ts",
-  "files": [
-    "build/src"
-  ],
+  "description": "Fractal Live System sample — a Workload behind an IdentityProvider (AWS Cognito / Azure Entra External ID) with a relational database, cross-cloud",
+  "main": "build/src/azure.js",
   "license": "AGPL-3.0-only",
   "scripts": {
     "lint": "gts lint",

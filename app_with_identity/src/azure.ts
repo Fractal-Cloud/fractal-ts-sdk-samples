@@ -1,0 +1,68 @@
+/**
+ * azure.ts — run the app Fractal fully on Azure.
+ *
+ * COPY THIS FILE to adopt the Fractal on your cloud, then run it:
+ *   npm run compile && node build/src/azure.js
+ *
+ * The ONLY cloud-specific code is the `select` map below:
+ *   - app:      AzureContainerApp (managed containers)
+ *   - idp:      EntraExternalId   (Microsoft Entra External ID — the Azure IdP)
+ *   - app-dbms: AzurePostgresDbms (managed PostgreSQL; the DB child follows it)
+ *
+ * Swapping the IdP to AWS is a one-line change (see mixed.ts, which selects
+ * Cognito) — the Fractal itself never changes.
+ */
+import {authorFractal} from './fractal';
+import {
+  deploy,
+  AzureContainerApp,
+  EntraExternalId,
+  AzurePostgresDbms,
+} from '@fractal_cloud/sdk/model';
+
+const environment = {
+  ownerType: 'Personal',
+  ownerId: process.env['OWNER_ID'] ?? '',
+  name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
+};
+
+const credentials = {
+  clientId: process.env['SERVICE_ACCOUNT_ID']!,
+  clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
+};
+
+async function main() {
+  const liveSystem = authorFractal()
+    .specialize()
+    // Application-level operations: the app's image, user directory and databases.
+    .withWebImage('acme/web:1.4.0')
+    .withUserDirectory('acme')
+    .withDatabases(['orders'])
+    .toLiveSystem({
+      name: 'acme-app',
+      environment,
+      // ── The ONLY cloud-specific lines: one Azure offer per component. ──
+      select: {
+        app: AzureContainerApp({resourceGroup: 'rg-app'}),
+        idp: EntraExternalId({
+          tenantName: 'acmeexternal',
+          resourceGroup: 'rg-identity',
+        }),
+        'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-data'}),
+      },
+    });
+
+  const bc = liveSystem.boundedContext;
+  console.log(
+    'LIVE_SYSTEM_ID=' +
+      [bc.ownerType ?? 'Personal', bc.ownerId ?? '', bc.name ?? '', liveSystem.name].join('/')
+  );
+  await deploy(liveSystem, credentials, {
+    mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
+  });
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
