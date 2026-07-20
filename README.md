@@ -21,7 +21,6 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 | [basic_big_data](./basic_big_data) | AWS · Azure · GCP | wait | Databricks workspace + Spark cluster + ETL job + MLflow experiment |
 | [basic_api_management](./basic_api_management) | AWS · Azure · GCP | wait | API Gateway (CloudFront / Azure API Management / GCP API Gateway) |
 | [basic_observability](./basic_observability) | self-hosted (CaaS) | wait | Monitoring + Tracing + Logging (Prometheus + Jaeger + Elastic) |
-| [basic_security](./basic_security) | self-hosted (CaaS) | wait | Service Mesh (Ocelot) |
 | [basic_onprem_vmware](./basic_onprem_vmware) | VMware | wait | Port Group + VLAN + two vSphere VMs |
 | [basic_onprem_openshift](./basic_onprem_openshift) | OpenShift | wait | NetworkPolicy + two Workloads + Service/Route + PersistentVolume + KubeVirt VM |
 | [basic_environment](./basic_environment) | Azure | wait | **Environment management**: init a management + operational environment (cloud agent, secret, CI/CD profile) via `deployEnvironment`, then deploy a LiveSystem into the operational env |
@@ -76,7 +75,6 @@ node build/src/gcp.js      # deploy on GCP
 | `basic_big_data` | Databricks | Databricks | Databricks | — | — | — | — | — |
 | `basic_api_management` | CloudFront | API Management | API Gateway | — | — | — | — | — |
 | `basic_observability` | — | — | — | — | — | Prometheus + Jaeger + Elastic | — | — |
-| `basic_security` | — | — | — | — | — | Ocelot | — | — |
 | `basic_onprem_vmware` | — | — | — | — | — | — | PortGroup + VLAN + VMs | — |
 | `basic_onprem_openshift` | — | — | — | — | — | — | — | Workloads + Service + NetworkPolicy + PV + VM |
 
