@@ -5,17 +5,19 @@
  *   npm run compile && node build/src/azure.js
  *
  * The ONLY cloud-specific code is the `select` map below:
- *   - app:      AzureContainerApp (managed containers)
- *   - idp:      EntraExternalId   (Microsoft Entra External ID — the Azure IdP)
- *   - app-dbms: AzurePostgresDbms (managed PostgreSQL; the DB child follows it)
+ *   - app-platform: Aks               (managed Kubernetes; workloads run on it)
+ *   - idp:          EntraExternalId    (Microsoft Entra External ID — the Azure IdP)
+ *   - app-dbms:     AzurePostgresDbms  (managed PostgreSQL; the DB child follows it)
  *
- * Swapping the IdP to AWS is a one-line change (see mixed.ts, which selects
- * Cognito) — the Fractal itself never changes.
+ * The workload itself is NOT selected here — it is added by the
+ * `withStatefulService` operation and emitted by the platform offer (Aks) in its
+ * own family. Swapping the IdP to AWS is a one-line change (see mixed.ts, which
+ * selects Cognito) — the Fractal itself never changes.
  */
 import {authorFractal} from './fractal';
 import {
   deploy,
-  AzureContainerApp,
+  Aks,
   EntraExternalId,
   AzurePostgresDbms,
 } from '@fractal_cloud/sdk/model';
@@ -34,16 +36,22 @@ const credentials = {
 async function main() {
   const liveSystem = authorFractal()
     .specialize()
-    // Application-level operations: the app's image, user directory and databases.
-    .withWebImage('acme/web:1.4.0')
+    // Application-level operations: name the user directory, then add a stateful
+    // service (workload + its database + the links wiring them together).
     .withUserDirectory('acme')
-    .withDatabases(['orders'])
+    .withStatefulService({
+      name: 'orders',
+      image: 'acme/web:1.4.0',
+      redirectUris: ['https://app.acme.example/oauth2/callback'],
+      logoutUris: ['https://app.acme.example/logout'],
+      scopes: ['openid', 'profile', 'email'],
+    })
     .toLiveSystem({
       name: 'acme-app',
       environment,
       // ── The ONLY cloud-specific lines: one Azure offer per component. ──
       select: {
-        app: AzureContainerApp({resourceGroup: 'rg-app'}),
+        'app-platform': Aks({}),
         idp: EntraExternalId({
           tenantName: 'acmeexternal',
           resourceGroup: 'rg-identity',

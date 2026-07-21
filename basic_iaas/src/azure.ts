@@ -43,7 +43,7 @@ async function main() {
       select: {
         'main-network': AzureVnet({}),
         'public-subnet': AzureSubnet({}),
-        'web-sg': AzureNsg({location: 'westeurope', resourceGroup: 'rg-iaas'}),
+        'web-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-iaas'}),
         'api-server': AzureVm({vmSize: 'Standard_B1s'}),
         'web-server': AzureVm({vmSize: 'Standard_B1s'}),
       },

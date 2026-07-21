@@ -31,7 +31,7 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one GCP offer per component. ──
       select: {
-        uploads: GcsBucket({location: 'EU'}),
+        uploads: GcsBucket({region: 'EU'}),
         'app-dbms': GcpPostgresDbms({tier: 'db-custom-2-7680'}),
       },
     });
@@ -39,7 +39,12 @@ async function main() {
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +
-      [bc.ownerType ?? 'Personal', bc.ownerId ?? '', bc.name ?? '', liveSystem.name].join('/')
+      [
+        bc.ownerType ?? 'Personal',
+        bc.ownerId ?? '',
+        bc.name ?? '',
+        liveSystem.name,
+      ].join('/'),
   );
   await deploy(liveSystem, credentials, {
     mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',

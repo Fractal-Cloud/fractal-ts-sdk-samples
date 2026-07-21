@@ -1,31 +1,34 @@
 /**
  * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
- * A vendor-AGNOSTIC application Fractal: a Workload (the app) that authenticates
- * against an IdentityProvider and persists to a relational database. The
- * blueprint references only abstract Components — it NEVER names a vendor or an
- * offer. The same Fractal runs on AWS (Cognito) or Azure (Entra External ID);
- * the only thing that changes is the per-component `select` map (see azure.ts /
- * mixed.ts).
+ * A vendor-AGNOSTIC application Fractal. The blueprint owns the GOVERNED
+ * foundation only — the "where" (a ContainerPlatform), the database engine
+ * (a RelationalDbms) and an IdentityProvider. It NEVER names a vendor or an
+ * offer. Workloads are NOT in the blueprint: a workload is something the dev
+ * team adds. The architect only governs where it may run and what it may talk to.
  *
  * Two kinds of specialization:
  *   - GUARDRAILS — the architect calls `.withXxx()` at design time; the value is
- *     LOCKED (infra/security posture: MFA, password policy, HA, backups, health).
+ *     LOCKED (infra/security posture: cluster version, HA, backups, MFA, ...).
  *   - OPERATIONS — the typed Interface a consuming dev uses: application-level
- *     verbs only (the web image, the user-directory name, the databases owned).
+ *     verbs only. `withStatefulService` adds ONE stateful service: a workload
+ *     (child of the platform) + its own database (child of the DBMS) + the links
+ *     that wire the workload to that database and to the identity provider.
  *
- * Structure lives here too: the app `dependsOn` the database, and a link from
- * the app to the identity provider provisions ONE app client (clientType `web`)
- * — see IdentityProviderClientLink. Connection facts (issuer, JWKS, client id)
- * are injected into the workload at reconciliation time; they are never on the
- * link.
+ * Links are authored HERE, inside the operation — never on the dev's surface —
+ * so the runtime relationships (which database a workload may reach, which
+ * identity provider it authenticates against, and with what client shape) stay a
+ * governed, Fractal-level concern. Connection facts (issuer, JWKS, client id) are
+ * injected into the workload at reconciliation time; they are never on the link.
  */
 import {
   createFractal,
-  Workload,
+  ContainerPlatform,
   IdentityProvider,
   RelationalDbms,
   RelationalDatabase,
+  RelationalDatabaseLink,
+  Workload,
   IdentityProviderClientLink,
 } from '@fractal_cloud/sdk/model';
 
@@ -40,12 +43,21 @@ export function authorFractal() {
     id: 'app-with-identity',
     version: {major: 1, minor: 0, patch: 0},
     description:
-      'A governed web application: a workload authenticated by an identity ' +
-      'provider, backed by a relational database.',
+      'A governed web application platform: workloads run on a managed ' +
+      'container platform, authenticate against an identity provider, and each ' +
+      'owns a relational database — all wired by governed operations.',
     boundedContextId,
     blueprint: bp => {
+      // ── The "where" — the managed container platform workloads run on.
+      //    Cluster version and network policy are governed posture. ──
+      const platform = bp.add(
+        ContainerPlatform({id: 'app-platform', displayName: 'Application Platform'})
+          .withKubernetesVersion('1.29') // guardrail
+          .withNetworkPolicyProvider('calico'), // guardrail
+      );
+
       // ── Database engine — capacity, HA, backups and engine version governed.
-      //    Logical databases are declared by the app via withDatabases. ──
+      //    Logical databases are added per service by withStatefulService. ──
       const dbms = bp.add(
         RelationalDbms({id: 'app-dbms', displayName: 'Application Database Engine'})
           .withHighAvailability('zone-redundant') // guardrail
@@ -57,7 +69,7 @@ export function authorFractal() {
       // ── Identity provider — account security is governed. Password policy,
       //    mandatory MFA and session duration are locked posture; the app only
       //    names its user directory (withUserDirectory operation). App clients
-      //    are provisioned per link, not here. ──
+      //    are provisioned per link, inside withStatefulService. ──
       const idp = bp.add(
         IdentityProvider({id: 'idp', displayName: 'Identity Provider'})
           .withPasswordPolicy({minLength: 12}) // guardrail
@@ -65,50 +77,61 @@ export function authorFractal() {
           .withSessionDuration(3600), // guardrail
       );
 
-      // ── The application workload — resource posture + health are governed;
-      //    the container image is the app's own choice (withWebImage). ──
-      const app = bp.add(
-        Workload({id: 'app', displayName: 'Web Application'})
-          .withMaxReplicas(5) // guardrail
-          .withCpuRequest('250m') // guardrail
-          .withMemoryRequest('512Mi') // guardrail
-          .withHealthCheck({path: '/healthz', port: 8080}) // guardrail
-          .dependsOn(dbms), // cannot start before the database exists
-      );
-
-      // ── The app declares ONE app client on the identity provider. `web` =
-      //    confidential client (login flow + secret). Vendor-neutral: the same
-      //    link works whether the IdP resolves to Cognito or Entra External ID. ──
-      bp.link(app, idp, {
-        clientType: 'web',
-        redirectUris: ['https://app.acme.example/oauth2/callback'],
-        logoutUris: ['https://app.acme.example/logout'],
-        scopes: ['openid', 'profile', 'email'],
-      } satisfies IdentityProviderClientLink);
-
-      return {dbms, idp, app};
+      return {platform, dbms, idp};
     },
 
-    // ── OPERATIONS — application-level verbs only. ──
-    operations: s => ({
-      /** The container image the app runs (a dev choice, not a locked guardrail). */
-      withWebImage: (image: string) => s.app.set('image', image),
+    // ── OPERATIONS — application-level verbs only. `link` (2nd arg) is the
+    //    Fractal-level link authoring the Interface exposes to operations. ──
+    operations: (s, {link}) => ({
       /** The application names the user directory it owns. */
       withUserDirectory: (name: string) => s.idp.set('userDirectoryName', name),
       /**
-       * The databases the application owns, by name. Each becomes a
-       * RelationalDatabase under the DBMS, emitted by the selected DBMS offer in
-       * its own vendor family. charset/collation are architect-governed defaults.
+       * Add ONE stateful service. This is the motivating case for links in
+       * operations: in a single governed verb the dev gets
+       *   - a Workload child under the container platform (its runtime home,
+       *     auto-wired as a dependency), carrying the app image plus the
+       *     architect's resource/health guardrails;
+       *   - a RelationalDatabase child under the DBMS (emitted in the DBMS's
+       *     vendor family); and
+       *   - the links that make it stateful and authenticated: workload → its
+       *     database, and workload → the identity provider (provisioning ONE
+       *     `web` app client). The dev never authors links directly.
        */
-      withDatabases: (names: string[]) => {
-        const adds = names.map(name =>
-          s.dbms.addChild(
-            RelationalDatabase({id: name, displayName: name})
-              .withCharset('UTF8')
-              .withCollation('en_US.utf8'),
-          ),
-        );
-        return st => adds.reduce((acc, add) => add(acc), st);
+      withStatefulService: (svc: {
+        name: string;
+        image: string;
+        redirectUris: string[];
+        logoutUris?: string[];
+        scopes?: string[];
+      }) => {
+        const db = RelationalDatabase({id: `${svc.name}-db`, displayName: `${svc.name} database`})
+          .withCharset('UTF8') // architect-governed default
+          .withCollation('en_US.utf8'); // architect-governed default
+        const workload = Workload({id: svc.name, displayName: svc.name})
+          .withImage(svc.image) // the app's own choice
+          .withMaxReplicas(5) // guardrail
+          .withCpuRequest('250m') // guardrail
+          .withMemoryRequest('512Mi') // guardrail
+          .withHealthCheck({path: '/healthz', port: 8080}); // guardrail
+        const idpClient = {
+          clientType: 'web',
+          redirectUris: svc.redirectUris,
+          logoutUris: svc.logoutUris,
+          scopes: svc.scopes,
+        } satisfies IdentityProviderClientLink;
+        const transforms = [
+          s.dbms.addChild(db),
+          s.platform.addChild(workload),
+          // The workload uses its database. `access` scopes the DB role the
+          // agent grants; connection env (DB_HOST/PORT/NAME/USERNAME and a
+          // DB_PASSWORD_REF secret reference) is injected from the database's
+          // output fields at reconciliation time — never carried on the link.
+          link(workload, db, {access: 'read-write'} satisfies RelationalDatabaseLink),
+          // The workload authenticates against the identity provider; this link
+          // provisions exactly one `web` app client.
+          link(workload, s.idp, idpClient),
+        ];
+        return st => transforms.reduce((acc, t) => t(acc), st);
       },
     }),
   });

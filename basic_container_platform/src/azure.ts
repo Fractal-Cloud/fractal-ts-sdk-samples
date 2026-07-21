@@ -42,7 +42,7 @@ async function main() {
       select: {
         'main-network': AzureVnet({}),
         'private-subnet': AzureSubnet({}),
-        'app-sg': AzureNsg({location: 'westeurope', resourceGroup: 'rg-cp'}),
+        'app-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-cp'}),
         'app-cluster': Aks({}),
         'web-workload': AzureContainerApp({resourceGroup: 'rg-cp'}),
         'api-workload': AzureContainerApp({resourceGroup: 'rg-cp'}),
@@ -52,7 +52,12 @@ async function main() {
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +
-      [bc.ownerType ?? 'Personal', bc.ownerId ?? '', bc.name ?? '', liveSystem.name].join('/')
+      [
+        bc.ownerType ?? 'Personal',
+        bc.ownerId ?? '',
+        bc.name ?? '',
+        liveSystem.name,
+      ].join('/'),
   );
   await deploy(liveSystem, credentials, {
     mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',

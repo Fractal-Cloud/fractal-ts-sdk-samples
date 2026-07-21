@@ -3,11 +3,13 @@
  *
  *   npm run compile && node build/src/mixed.js
  *
- * This is the "ECS + Cognito + database" shape: the workload runs on AWS ECS and
- * authenticates against AWS Cognito, while the relational database is on Azure.
+ * This is the "EKS + Cognito + database" shape: workloads run on AWS EKS and
+ * authenticate against AWS Cognito, while the relational database is on Azure.
  * Offer selection is per-component, so one LiveSystem may span vendors freely —
  * the compiler still checks each offer satisfies its component, and the Fractal
- * (fractal.ts) is untouched.
+ * (fractal.ts) is untouched. The workload is not selected here: it is added by
+ * `withStatefulService` and emitted by the platform offer (Eks) as a portable
+ * Kubernetes workload.
  *
  * Why the DB is on Azure: the catalogue has no AWS-managed relational offer yet
  * (only Azure/GCP/Aruba satisfy Storage.RelationalDbms). Add an AWS RDS offer to
@@ -16,7 +18,7 @@
 import {authorFractal} from './fractal';
 import {
   deploy,
-  EcsService,
+  Eks,
   Cognito,
   AzurePostgresDbms,
 } from '@fractal_cloud/sdk/model';
@@ -35,15 +37,20 @@ const credentials = {
 async function main() {
   const liveSystem = authorFractal()
     .specialize()
-    .withWebImage('acme/web:1.4.0')
     .withUserDirectory('acme')
-    .withDatabases(['orders'])
+    .withStatefulService({
+      name: 'orders',
+      image: 'acme/web:1.4.0',
+      redirectUris: ['https://app.acme.example/oauth2/callback'],
+      logoutUris: ['https://app.acme.example/logout'],
+      scopes: ['openid', 'profile', 'email'],
+    })
     .toLiveSystem({
       name: 'acme-app',
       environment,
-      // ── Mixed-vendor select: AWS workload + AWS identity, Azure database. ──
+      // ── Mixed-vendor select: AWS platform + AWS identity, Azure database. ──
       select: {
-        app: EcsService({launchType: 'FARGATE'}),
+        'app-platform': Eks({}),
         idp: Cognito({}),
         // DB on Azure: the SDK has no AWS managed relational offer yet, so the
         // relational tier runs on Azure in this mixed-vendor LiveSystem.

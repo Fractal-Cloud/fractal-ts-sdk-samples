@@ -33,7 +33,7 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: mix vendors per component. ──
       select: {
-        uploads: AwsS3({bucketRegion: 'us-east-1'}), // AWS object storage…
+        uploads: AwsS3({region: 'us-east-1'}), // AWS object storage…
         'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}), // …+ Azure DB
       },
     });
@@ -41,7 +41,12 @@ async function main() {
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +
-      [bc.ownerType ?? 'Personal', bc.ownerId ?? '', bc.name ?? '', liveSystem.name].join('/')
+      [
+        bc.ownerType ?? 'Personal',
+        bc.ownerId ?? '',
+        bc.name ?? '',
+        liveSystem.name,
+      ].join('/'),
   );
   await deploy(liveSystem, credentials, {
     mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
