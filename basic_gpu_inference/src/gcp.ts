@@ -1,81 +1,47 @@
 /**
- * gcp.ts — run the GPU-inference Fractal on GCP.
+ * gcp.ts — bring the GPU-inference LiveSystem UP on GCP.
  *
- * COPY THIS FILE to adopt the Fractal on your cloud, then run it. It is fully
- * self-contained: it specializes the shared Fractal (fractal.ts), selects one
- * GCP offer per component, builds the LiveSystem, and deploys. This pattern
- * exposes no application-level operations, so `.specialize()` carries no ops.
+ *   npm run deploy          # (== npm run compile && node build/src/gcp.js)
  *
- * The ONLY cloud-specific code is the `select` map below: the VM `machineType`
- * (an A100 box) plus the `userData` first-boot script that self-bootstraps vLLM.
- * To target another cloud, copy this file and swap the offers + size key
- * (`instanceType` on AWS/Azure, `serverType` on Hetzner); `userData` is accepted
- * on every VM offer.
+ * The LiveSystem definition (offers, region, GPU size, vLLM bootstrap) lives in
+ * live_system.ts so deploy and destroy share one source of truth. Tear it down
+ * with `npm run destroy` (destroy.ts).
  *
- *   npm run compile && node build/src/gcp.js
+ * Deploys in `wait` mode by default — blocks until Active (or fails). Set
+ * DEPLOY_MODE=fire-and-forget to submit and return immediately.
  */
-import {readFileSync} from 'node:fs';
-import {join} from 'node:path';
-import {authorFractal} from './fractal';
-import {
-  deploy,
-  GcpVpc,
-  GcpSubnet,
-  GcpFirewall,
-  GcpVm,
-} from '@fractal_cloud/sdk/model';
+import {deploy, getLiveSystemOutputs} from '@fractal_cloud/sdk/model';
+import {buildLiveSystem, credentials, logLiveSystemId} from './live_system';
 
-// First-boot script (NVIDIA stack + vLLM). Lives in its own file so it stays
-// readable/lintable; passed to the VM declaratively via `userData`. Path is
-// relative to the compiled entrypoint (build/src/gcp.js → repo root).
-const bootstrap = readFileSync(
-  join(__dirname, '..', '..', 'vllm-bootstrap.sh'),
-  'utf8',
-);
-
-const environment = {
-  ownerType: 'Personal',
-  ownerId: process.env['OWNER_ID'] ?? '',
-  name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
-};
-
-const credentials = {
-  clientId: process.env['SERVICE_ACCOUNT_ID']!,
-  clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
-};
+// The blueprint component that hosts vLLM (see live_system.ts `select`).
+const VLLM_HOST = 'vllm-host';
 
 async function main() {
-  const liveSystem = authorFractal()
-    .specialize()
-    .toLiveSystem({
-      name: 'gpu-inference',
-      environment,
-      // ── The ONLY cloud-specific lines: one GCP offer per component. ──
-      select: {
-        'inference-net': GcpVpc({}),
-        'inference-subnet': GcpSubnet({}),
-        'inference-sg': GcpFirewall({}),
-        // a2-highgpu-1g = 1× NVIDIA A100 40 GB. On-demand (not spot/preemptible)
-        // so a long run is never evicted mid-flight. Requires A100 quota in the
-        // target region (e.g. us-central1). `userData` is the first-boot script
-        // (NVIDIA stack + vLLM) — the box self-bootstraps, no manual step.
-        'vllm-host': GcpVm({machineType: 'a2-highgpu-1g', userData: bootstrap}),
-      },
-    });
+  const liveSystem = buildLiveSystem();
+  logLiveSystemId(liveSystem);
+  const mode =
+    (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait';
 
-  const bc = liveSystem.boundedContext;
-  console.log(
-    'LIVE_SYSTEM_ID=' +
-      [
-        bc.ownerType ?? 'Personal',
-        bc.ownerId ?? '',
-        bc.name ?? '',
-        liveSystem.name,
-      ].join('/'),
-  );
-  await deploy(liveSystem, credentials, {
-    mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
-  });
+  // In `wait` mode deploy() resolves to the LiveSystem state; in fire-and-forget
+  // it returns undefined, so read the outputs back once the system is up.
+  const state =
+    (await deploy(liveSystem, credentials, {mode})) ??
+    (mode === 'fire-and-forget'
+      ? await getLiveSystemOutputs(liveSystem, credentials)
+      : undefined);
+
+  // Read the host's private IP straight from the SDK — no gcloud side-channel.
+  // vLLM listens on :8000, VPC-internal, so this is the address to drive it.
+  const privateIp = state?.components[VLLM_HOST]?.outputFields.privateIp;
+  if (privateIp) {
+    console.log(`VLLM_PRIVATE_IP=${privateIp}`);
+    console.log(`VLLM_BASE_URL=http://${privateIp}:8000`);
+  } else {
+    console.warn(
+      `[${VLLM_HOST}] has no privateIp yet — the VM may still be provisioning; ` +
+        're-run getLiveSystemOutputs() shortly.',
+    );
+  }
 }
 
 main().catch(err => {
