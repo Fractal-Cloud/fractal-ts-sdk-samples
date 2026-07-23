@@ -61,10 +61,30 @@ export function buildLiveSystem() {
         // so a long run is never evicted mid-flight. Requires A100 quota in
         // `region`. `userData` is the first-boot script (NVIDIA stack + vLLM) —
         // the box self-bootstraps, no manual step.
+        //
+        // imageLink: the bootstrap installs the NVIDIA driver via `ubuntu-drivers`
+        // (Ubuntu-only), so the VM MUST boot an Ubuntu image — the agent default
+        // (debian-12) has no `ubuntu-drivers` and the driver install fails.
+        //
+        // identity (optional): attach a service account so the box reaches cloud
+        // resources (pull from GCS, read a key from Secret Manager, upload results)
+        // WITHOUT injected keys. Set VM_SERVICE_ACCOUNT to the SA email; scopes are
+        // cloud-platform (narrow via IAM roles on the SA). Omit to run without one.
         'vllm-host': GcpVm({
           region: REGION,
           machineType: 'a2-highgpu-1g',
           userData: bootstrap,
+          imageLink:
+            process.env['IMAGE_LINK'] ??
+            'projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts',
+          ...(process.env['VM_SERVICE_ACCOUNT']
+            ? {
+                identity: {
+                  serviceAccount: process.env['VM_SERVICE_ACCOUNT'],
+                  scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+                },
+              }
+            : {}),
         }),
       },
     });
