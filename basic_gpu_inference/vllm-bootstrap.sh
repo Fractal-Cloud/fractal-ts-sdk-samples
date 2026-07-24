@@ -45,3 +45,25 @@ docker run -d --restart=always --gpus all --ipc=host -p "${VLLM_PORT}:8000" \
   --quantization awq_marlin \
   --max-model-len 16384 \
   --gpu-memory-utilization 0.92
+
+# 5. Linked resources — the bucket and the OpenAI service. The agent delivers
+#    these at first boot (the VM reconcile GATES on both targets being Active),
+#    so /etc/fractal/linked.env is already present here. We source it to pick up:
+#      RESULTS_BUCKET_URI   the results bucket, e.g. gs://results-bucket-ab12
+#      OPENAI_API_KEY_REF   a secret-store REFERENCE (never the raw key)
+#    The box authenticates with its OWN identity (granted by the read-write link),
+#    so there are no key files and no hand-attached service account.
+source /etc/fractal/linked.env
+
+# Prove write access: drop a boot marker into the results bucket. gsutil uses the
+# VM's attached identity — no credentials passed.
+echo "vllm-host booted $(date -u +%FT%TZ)" > /tmp/boot-marker.txt
+gsutil cp /tmp/boot-marker.txt "${RESULTS_BUCKET_URI}/boot-marker.txt"
+
+# Resolve the OpenAI key from its reference. Disable command tracing first so the
+# secret value never lands in the startup-script log (`set -x` would echo it).
+set +x
+OPENAI_API_KEY="$(gcloud secrets versions access latest --secret "${OPENAI_API_KEY_REF}")"
+export OPENAI_API_KEY
+set -x
+# OPENAI_API_KEY is now available to any downstream eval process. Never echo it.

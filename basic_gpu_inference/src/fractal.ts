@@ -3,10 +3,12 @@
  *
  * A vendor-AGNOSTIC Fractal for a single-node GPU inference host: a virtual
  * network, a subnet, a security group, and one VirtualMachine that will serve a
- * self-hosted LLM over an OpenAI-compatible HTTP API (vLLM). The blueprint names
- * only abstract Components — never a vendor or an offer. The GPU machine size and
- * the vLLM bootstrap script are OFFER config, chosen per-cloud at selection time
- * (see gcp.ts), NOT here.
+ * self-hosted LLM over an OpenAI-compatible HTTP API (vLLM). The box also
+ * reads/writes a results bucket and calls an external OpenAI-compatible API —
+ * both wired DECLARATIVELY via links, with no hand-attached service account and
+ * no secrets in the blueprint. The blueprint names only abstract Components —
+ * never a vendor or an offer. The GPU machine size and the vLLM bootstrap script
+ * are OFFER config, chosen per-cloud at selection time (see gcp.ts), NOT here.
  *
  * What lives here:
  *   - STRUCTURE — the components, their DEPENDENCIES (`.dependsOn`) and their
@@ -30,6 +32,10 @@ import {
   Subnet,
   SecurityGroup,
   VirtualMachine,
+  ObjectStorage,
+  Unmanaged,
+  type ObjectStorageLink,
+  type UnmanagedLink,
 } from '@fractal_cloud/sdk/model';
 
 const boundedContextId = {
@@ -101,12 +107,40 @@ export function authorFractal() {
           .dependsOn(subnet),
       );
 
-      // ── Link (runtime relationship, distinct from dependency): the host joins
-      //    the security group. Membership needs no settings — the presence of the
-      //    link is the only signal the agent needs. ──
+      // ── Results bucket — where the box writes eval outputs and reads inputs.
+      //    Abstract ObjectStorage; the offer (a GCS bucket) is chosen in gcp.ts. ──
+      const resultsBucket = bp.add(
+        ObjectStorage({
+          id: 'results-bucket',
+          displayName: 'Eval Results Bucket',
+        }),
+      );
+
+      // ── External AI service — an OpenAI-compatible API Fractal does NOT
+      //    provision. It only holds a REFERENCE to the API key (an environment
+      //    secret); the offer wires that reference in gcp.ts. ──
+      const openai = bp.add(
+        Unmanaged({id: 'openai', displayName: 'OpenAI API'}),
+      );
+
+      // ── Links (runtime relationships, distinct from dependencies). ──
+
+      // The host joins the security group. Membership needs no settings — the
+      // presence of the link is the only signal the agent needs.
       bp.link(gpuHost, securityGroup);
 
-      return {network, subnet, securityGroup, gpuHost};
+      // The host reads AND writes the bucket. The agent ensures the VM has an
+      // identity, grants it a bucket role SCOPED by `access` (least-privilege —
+      // no broad cloud-platform scope), and publishes the bucket URI to the box.
+      bp.link(gpuHost, resultsBucket, {
+        access: 'read-write',
+      } satisfies ObjectStorageLink);
+
+      // The host consumes the external OpenAI API. The agent injects the config
+      // plus a secret REFERENCE (never the raw key) under the OPENAI_ prefix.
+      bp.link(gpuHost, openai, {envPrefix: 'OPENAI'} satisfies UnmanagedLink);
+
+      return {network, subnet, securityGroup, gpuHost, resultsBucket, openai};
     },
 
     // No `operations`: this pattern has no application-level verbs to expose.

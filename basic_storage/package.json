@@ -18,7 +18,7 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.4.2"
+    "@fractal_cloud/sdk": "^2.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",

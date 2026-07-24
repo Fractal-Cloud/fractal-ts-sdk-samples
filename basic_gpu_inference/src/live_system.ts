@@ -15,7 +15,15 @@
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {authorFractal} from './fractal';
-import {GcpVpc, GcpSubnet, GcpFirewall, GcpVm} from '@fractal_cloud/sdk/model';
+import {
+  GcpVpc,
+  GcpSubnet,
+  GcpFirewall,
+  GcpVm,
+  GcsBucket,
+  UnmanagedAi,
+  secretRef,
+} from '@fractal_cloud/sdk/model';
 
 // First-boot script (NVIDIA stack + vLLM). Lives in its own file so it stays
 // readable/lintable; passed to the VM declaratively via `userData`. Path is
@@ -86,6 +94,15 @@ export function buildLiveSystem() {
               }
             : {}),
         }),
+        // Results bucket → a regional GCS bucket. The VM's read-write link
+        // (fractal.ts) makes the agent grant the box's OWN identity a scoped
+        // bucket role and publish RESULTS_BUCKET_URI to it — no shared SA.
+        'results-bucket': GcsBucket({region: REGION}),
+        // External AI service → the vendor-neutral AI.SaaS.Unmanaged offer. Its
+        // `secret` REFERENCES the `openai-api-key` environment secret by short
+        // name; the raw key never travels through the blueprint or live system.
+        // Define the secret on the environment before deploy (see README).
+        openai: UnmanagedAi({secret: secretRef('openai-api-key')}),
       },
     });
 }
