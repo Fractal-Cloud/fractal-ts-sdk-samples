@@ -52,7 +52,10 @@ export function authorFractal() {
       // ── Compute cluster — capacity + lifecycle are governed. The app may name
       //    the cluster (withClusterName op), but never resize it. ──
       const cluster = bp.add(
-        ComputeCluster({id: 'analytics-cluster', displayName: 'Analytics Cluster'})
+        ComputeCluster({
+          id: 'analytics-cluster',
+          displayName: 'Analytics Cluster',
+        })
           .withMaxWorkers(10) // guardrail: capacity ceiling
           .withAutoTerminationMinutes(30), // guardrail: idle shutdown
       );
@@ -67,11 +70,15 @@ export function authorFractal() {
 
       // ── ML experiment tracker. The app owns its display name
       //    (withExperimentName op); no infra guardrails to govern. ──
-      const experiment = bp.add(MlExperiment({id: 'fraud-model', displayName: 'Fraud Detection Model'}));
+      const experiment = bp.add(
+        MlExperiment({id: 'fraud-model', displayName: 'Fraud Detection Model'}),
+      );
 
       // ── Data lake — object versioning is governed (keep object history). ──
       const lake = bp.add(
-        Datalake({id: 'lake', displayName: 'Data Lake'}).withVersioningEnabled(true), // guardrail
+        Datalake({id: 'lake', displayName: 'Data Lake'}).withVersioningEnabled(
+          true,
+        ), // guardrail
       );
 
       return {cluster, job, experiment, lake};

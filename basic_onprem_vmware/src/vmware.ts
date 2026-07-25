@@ -6,7 +6,7 @@
  */
 import {authorFractal} from './fractal';
 import {
-  deploy,
+  createFractalCloudClient,
   VspherePortGroup,
   VsphereVlan,
   VsphereVm,
@@ -23,30 +23,40 @@ const credentials = {
   clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
 };
 
+const cloud = createFractalCloudClient(credentials);
+
 async function main() {
-  const liveSystem = authorFractal()
-    .specialize()
-    .toLiveSystem({
-      name: 'basic-onprem-vmware',
-      environment,
-      // Per-component offer selection. Each entry maps a blueprint component id
-      // (from fractal.ts) to a concrete VMware offer plus that offer's vendor
-      // config — the dvSwitch the port group binds to, the VLAN id, the VM
-      // template. These vSphere knobs are offer config, never blueprint params.
-      select: {
-        'main-network': VspherePortGroup({dvSwitchName: 'dvs0'}),
-        'server-vlan': VsphereVlan({vlanId: 100}),
-        'api-server': VsphereVm({template: 'ubuntu-24.04'}),
-        'web-server': VsphereVm({template: 'ubuntu-24.04'}),
-      },
-    });
+  const fractal = authorFractal();
+  const liveSystem = fractal.specialize().toLiveSystem({
+    name: 'basic-onprem-vmware',
+    environment,
+    // Per-component offer selection. Each entry maps a blueprint component id
+    // (from fractal.ts) to a concrete VMware offer plus that offer's vendor
+    // config — the dvSwitch the port group binds to, the VLAN id, the VM
+    // template. These vSphere knobs are offer config, never blueprint params.
+    select: {
+      'main-network': VspherePortGroup({dvSwitchName: 'dvs0'}),
+      'server-vlan': VsphereVlan({vlanId: 100}),
+      'api-server': VsphereVm({template: 'ubuntu-24.04'}),
+      'web-server': VsphereVm({template: 'ubuntu-24.04'}),
+    },
+  });
 
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +
-      [bc.ownerType ?? 'Personal', bc.ownerId ?? '', bc.name ?? '', liveSystem.name].join('/')
+      [
+        bc.ownerType ?? 'Personal',
+        bc.ownerId ?? '',
+        bc.name ?? '',
+        liveSystem.name,
+      ].join('/'),
   );
-  await deploy(liveSystem, credentials, {
+  // A blueprint and a LiveSystem are different entities. Register the
+  // reusable, vendor-agnostic blueprint first; the API rejects a LiveSystem
+  // whose Fractal is not registered.
+  await cloud.blueprints.create(fractal);
+  await cloud.liveSystems.deploy(liveSystem, {
     mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
   });
 }

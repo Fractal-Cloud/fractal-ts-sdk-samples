@@ -54,7 +54,10 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Virtual network — address space is a governed guardrail. ──
       const network = bp.add(
-        VirtualNetwork({id: 'main-network', displayName: 'Main Network'}).withCidrBlock('10.0.0.0/16'), // guardrail: the network's address space is fixed by the architect
+        VirtualNetwork({
+          id: 'main-network',
+          displayName: 'Main Network',
+        }).withCidrBlock('10.0.0.0/16'), // guardrail: the network's address space is fixed by the architect
       );
 
       // ── Server subnet — carved from the network's CIDR; depends on it
@@ -67,13 +70,17 @@ export function authorFractal() {
 
       // ── API server — backend VM in the subnet (depends on it). ──
       const apiServer = bp.add(
-        VirtualMachine({id: 'api-server', displayName: 'API Server'}).dependsOn(subnet),
+        VirtualMachine({id: 'api-server', displayName: 'API Server'}).dependsOn(
+          subnet,
+        ),
       );
 
       // ── Web server — frontend VM in the subnet (depends on it); proxies to
       //    the api server. ──
       const webServer = bp.add(
-        VirtualMachine({id: 'web-server', displayName: 'Web Server'}).dependsOn(subnet),
+        VirtualMachine({id: 'web-server', displayName: 'Web Server'}).dependsOn(
+          subnet,
+        ),
       );
 
       // ── Links (runtime relationships — distinct from dependencies). ──

@@ -15,7 +15,7 @@
  */
 import {authorFractal} from './fractal';
 import {
-  deploy,
+  createFractalCloudClient,
   AzureVnet,
   AzureSubnet,
   AzureNsg,
@@ -33,21 +33,22 @@ const credentials = {
   clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
 };
 
+const cloud = createFractalCloudClient(credentials);
+
 async function main() {
-  const liveSystem = authorFractal()
-    .specialize()
-    .toLiveSystem({
-      name: 'basic-iaas',
-      environment,
-      // ── The ONLY cloud-specific lines: one Azure offer per component. ──
-      select: {
-        'main-network': AzureVnet({}),
-        'public-subnet': AzureSubnet({}),
-        'web-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-iaas'}),
-        'api-server': AzureVm({vmSize: 'Standard_B1s'}),
-        'web-server': AzureVm({vmSize: 'Standard_B1s'}),
-      },
-    });
+  const fractal = authorFractal();
+  const liveSystem = fractal.specialize().toLiveSystem({
+    name: 'basic-iaas',
+    environment,
+    // ── The ONLY cloud-specific lines: one Azure offer per component. ──
+    select: {
+      'main-network': AzureVnet({}),
+      'public-subnet': AzureSubnet({}),
+      'web-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-iaas'}),
+      'api-server': AzureVm({vmSize: 'Standard_B1s'}),
+      'web-server': AzureVm({vmSize: 'Standard_B1s'}),
+    },
+  });
 
   const bc = liveSystem.boundedContext;
   console.log(
@@ -59,7 +60,11 @@ async function main() {
         liveSystem.name,
       ].join('/'),
   );
-  await deploy(liveSystem, credentials, {
+  // A blueprint and a LiveSystem are different entities. Register the
+  // reusable, vendor-agnostic blueprint first; the API rejects a LiveSystem
+  // whose Fractal is not registered.
+  await cloud.blueprints.create(fractal);
+  await cloud.liveSystems.deploy(liveSystem, {
     mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
   });
 }

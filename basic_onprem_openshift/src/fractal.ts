@@ -57,20 +57,36 @@ export function authorFractal() {
       // ── Network policy — the architect governs its ingress posture. ──
       //    Allow HTTP from anywhere and the API port from the cluster pod CIDR.
       const sg = bp.add(
-        SecurityGroup({id: 'app-network-policy', displayName: 'Application Network Policy'}).withIngressRules([
+        SecurityGroup({
+          id: 'app-network-policy',
+          displayName: 'Application Network Policy',
+        }).withIngressRules([
           {fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'}, // guardrail
           {fromPort: 8080, toPort: 8080, sourceCidr: '10.128.0.0/14'}, // guardrail
         ]),
       );
 
       // ── Workloads — the app declares image/replicas via operations below. ──
-      const api = bp.add(Workload({id: 'api-workload', displayName: 'API Workload'}));
-      const web = bp.add(Workload({id: 'web-workload', displayName: 'Web Workload'}));
+      const api = bp.add(
+        Workload({id: 'api-workload', displayName: 'API Workload'}),
+      );
+      const web = bp.add(
+        Workload({id: 'web-workload', displayName: 'Web Workload'}),
+      );
 
       // ── Public service + persistent storage + legacy VM. ──
-      const lb = bp.add(LoadBalancer({id: 'web-service', displayName: 'Web Service Load Balancer'}));
-      const storage = bp.add(ObjectStorage({id: 'app-storage', displayName: 'Application Storage'}));
-      const vm = bp.add(VirtualMachine({id: 'legacy-vm', displayName: 'Legacy VM'}));
+      const lb = bp.add(
+        LoadBalancer({
+          id: 'web-service',
+          displayName: 'Web Service Load Balancer',
+        }),
+      );
+      const storage = bp.add(
+        ObjectStorage({id: 'app-storage', displayName: 'Application Storage'}),
+      );
+      const vm = bp.add(
+        VirtualMachine({id: 'legacy-vm', displayName: 'Legacy VM'}),
+      );
 
       // ── Links (runtime relationships) — blueprint owns ALL structure. ──
       // Both workloads are members of the network policy (membership: no settings).

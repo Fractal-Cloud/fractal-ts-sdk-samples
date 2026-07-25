@@ -7,13 +7,14 @@
  * live_system.ts), so bring-up/tear-down cycles are symmetric and repeatable.
  * The GPU box is expensive — run this the moment a run finishes.
  */
-import {destroy} from '@fractal_cloud/sdk/model';
-import {buildLiveSystem, credentials, logLiveSystemId} from './live_system';
+import {buildLiveSystem, cloud, logLiveSystemId} from './live_system';
 
 async function main() {
   const liveSystem = buildLiveSystem();
   logLiveSystemId(liveSystem);
-  await destroy(liveSystem, credentials);
+  // Tears down this instantiation only — the registered blueprint stays put, so
+  // the same Fractal can be deployed again.
+  await cloud.liveSystems.destroy(liveSystem);
   console.log('destroyed');
 }
 

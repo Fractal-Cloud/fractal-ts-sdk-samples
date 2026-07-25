@@ -57,7 +57,10 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Network topology — CIDR blocks are governed. ──
       const network = bp.add(
-        VirtualNetwork({id: 'main-network', displayName: 'Main Network'}).withCidrBlock('10.0.0.0/16'), // guardrail
+        VirtualNetwork({
+          id: 'main-network',
+          displayName: 'Main Network',
+        }).withCidrBlock('10.0.0.0/16'), // guardrail
       );
       const subnet = bp.add(
         Subnet({id: 'private-subnet', displayName: 'Private Subnet'})
@@ -78,7 +81,10 @@ export function authorFractal() {
 
       // ── Managed cluster — node pool topology + autoscaling are governed. ──
       const cluster = bp.add(
-        ContainerPlatform({id: 'app-cluster', displayName: 'Application Cluster'})
+        ContainerPlatform({
+          id: 'app-cluster',
+          displayName: 'Application Cluster',
+        })
           .dependsOn(subnet)
           .withNodePools([
             {
@@ -95,10 +101,14 @@ export function authorFractal() {
       //    replica count are NOT set here: they are application choices, exposed
       //    as operations below. ──
       const api = bp.add(
-        Workload({id: 'api-workload', displayName: 'API Workload'}).dependsOn(cluster).dependsOn(subnet),
+        Workload({id: 'api-workload', displayName: 'API Workload'})
+          .dependsOn(cluster)
+          .dependsOn(subnet),
       );
       const web = bp.add(
-        Workload({id: 'web-workload', displayName: 'Web Workload'}).dependsOn(cluster).dependsOn(subnet),
+        Workload({id: 'web-workload', displayName: 'Web Workload'})
+          .dependsOn(cluster)
+          .dependsOn(subnet),
       );
 
       // ── Links (structure) — membership + traffic rules, architect-owned. ──

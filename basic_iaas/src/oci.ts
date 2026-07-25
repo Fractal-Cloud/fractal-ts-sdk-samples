@@ -14,7 +14,7 @@
  */
 import {authorFractal} from './fractal';
 import {
-  deploy,
+  createFractalCloudClient,
   OciVcn,
   OciSubnet,
   OciSecurityList,
@@ -32,30 +32,40 @@ const credentials = {
   clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
 };
 
+const cloud = createFractalCloudClient(credentials);
+
 async function main() {
-  const liveSystem = authorFractal()
-    .specialize()
-    .toLiveSystem({
-      name: 'basic-iaas',
-      environment,
-      // ── The ONLY cloud-specific lines: one OCI offer per component. ──
-      select: {
-        'main-network': OciVcn({}),
-        'public-subnet': OciSubnet({}),
-        'web-sg': OciSecurityList({
-          compartmentId: process.env['OCI_COMPARTMENT_ID'] ?? '',
-        }),
-        'api-server': OciInstance({shape: 'VM.Standard.E4.Flex'}),
-        'web-server': OciInstance({shape: 'VM.Standard.E4.Flex'}),
-      },
-    });
+  const fractal = authorFractal();
+  const liveSystem = fractal.specialize().toLiveSystem({
+    name: 'basic-iaas',
+    environment,
+    // ── The ONLY cloud-specific lines: one OCI offer per component. ──
+    select: {
+      'main-network': OciVcn({}),
+      'public-subnet': OciSubnet({}),
+      'web-sg': OciSecurityList({
+        compartmentId: process.env['OCI_COMPARTMENT_ID'] ?? '',
+      }),
+      'api-server': OciInstance({shape: 'VM.Standard.E4.Flex'}),
+      'web-server': OciInstance({shape: 'VM.Standard.E4.Flex'}),
+    },
+  });
 
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +
-      [bc.ownerType ?? 'Personal', bc.ownerId ?? '', bc.name ?? '', liveSystem.name].join('/')
+      [
+        bc.ownerType ?? 'Personal',
+        bc.ownerId ?? '',
+        bc.name ?? '',
+        liveSystem.name,
+      ].join('/'),
   );
-  await deploy(liveSystem, credentials, {
+  // A blueprint and a LiveSystem are different entities. Register the
+  // reusable, vendor-agnostic blueprint first; the API rejects a LiveSystem
+  // whose Fractal is not registered.
+  await cloud.blueprints.create(fractal);
+  await cloud.liveSystems.deploy(liveSystem, {
     mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
   });
 }

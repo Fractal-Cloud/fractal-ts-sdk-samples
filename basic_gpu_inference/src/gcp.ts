@@ -10,8 +10,12 @@
  * Deploys in `wait` mode by default — blocks until Active (or fails). Set
  * DEPLOY_MODE=fire-and-forget to submit and return immediately.
  */
-import {deploy, getLiveSystemOutputs} from '@fractal_cloud/sdk/model';
-import {buildLiveSystem, credentials, logLiveSystemId} from './live_system';
+import {
+  buildFractal,
+  buildLiveSystem,
+  cloud,
+  logLiveSystemId,
+} from './live_system';
 
 // The blueprint component that hosts vLLM (see live_system.ts `select`).
 const VLLM_HOST = 'vllm-host';
@@ -22,12 +26,17 @@ async function main() {
   const mode =
     (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait';
 
-  // In `wait` mode deploy() resolves to the LiveSystem state; in fire-and-forget
+  // A blueprint and a LiveSystem are different entities. Register the reusable,
+  // vendor-agnostic blueprint first; the API rejects a LiveSystem whose Fractal
+  // is not registered.
+  await cloud.blueprints.create(buildFractal());
+
+  // In `wait` mode deploy resolves to the LiveSystem state; in fire-and-forget
   // it returns undefined, so read the outputs back once the system is up.
   const state =
-    (await deploy(liveSystem, credentials, {mode})) ??
+    (await cloud.liveSystems.deploy(liveSystem, {mode})) ??
     (mode === 'fire-and-forget'
-      ? await getLiveSystemOutputs(liveSystem, credentials)
+      ? await cloud.liveSystems.outputs(liveSystem)
       : undefined);
 
   // Read the host's private IP straight from the SDK — no gcloud side-channel.
@@ -39,7 +48,7 @@ async function main() {
   } else {
     console.warn(
       `[${VLLM_HOST}] has no privateIp yet — the VM may still be provisioning; ` +
-        're-run getLiveSystemOutputs() shortly.',
+        're-run cloud.liveSystems.outputs() shortly.',
     );
   }
 }

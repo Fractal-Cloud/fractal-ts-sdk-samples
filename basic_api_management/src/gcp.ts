@@ -5,7 +5,10 @@
  *   npm run compile && node build/src/gcp.js
  */
 import {authorFractal} from './fractal';
-import {deploy, GcpApiGateway} from '@fractal_cloud/sdk/model';
+import {
+  createFractalCloudClient,
+  GcpApiGateway,
+} from '@fractal_cloud/sdk/model';
 
 const environment = {
   ownerType: 'Personal',
@@ -17,8 +20,11 @@ const credentials = {
   clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
 };
 
+const cloud = createFractalCloudClient(credentials);
+
 async function main() {
-  const liveSystem = authorFractal()
+  const fractal = authorFractal();
+  const liveSystem = fractal
     .specialize()
     // Application-level operations: the app declares the routes it exposes. The
     // architect's security guardrails (httpsOnly / rateLimit / cors) are locked
@@ -40,9 +46,18 @@ async function main() {
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +
-      [bc.ownerType ?? 'Personal', bc.ownerId ?? '', bc.name ?? '', liveSystem.name].join('/')
+      [
+        bc.ownerType ?? 'Personal',
+        bc.ownerId ?? '',
+        bc.name ?? '',
+        liveSystem.name,
+      ].join('/'),
   );
-  await deploy(liveSystem, credentials, {
+  // A blueprint and a LiveSystem are different entities. Register the
+  // reusable, vendor-agnostic blueprint first; the API rejects a LiveSystem
+  // whose Fractal is not registered.
+  await cloud.blueprints.create(fractal);
+  await cloud.liveSystems.deploy(liveSystem, {
     mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
   });
 }

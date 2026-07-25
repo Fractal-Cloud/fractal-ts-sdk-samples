@@ -16,6 +16,7 @@ import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {authorFractal} from './fractal';
 import {
+  createFractalCloudClient,
   GcpVpc,
   GcpSubnet,
   GcpFirewall,
@@ -50,12 +51,25 @@ export const credentials = {
   clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
 };
 
+/** One client for every entrypoint — it holds the credentials so no operation
+ *  has to take them. */
+export const cloud = createFractalCloudClient(credentials);
+
+/**
+ * The Fractal itself. Its blueprint — abstract, vendor-agnostic Components — is a
+ * SEPARATE entity from the LiveSystem below, registered with
+ * `cloud.blueprints.create(...)`.
+ */
+export function buildFractal() {
+  return authorFractal();
+}
+
 /**
  * Build the LiveSystem. Pure + deterministic (same env → same definition), so
  * deploy and destroy always target exactly the same system.
  */
 export function buildLiveSystem() {
-  return authorFractal()
+  return buildFractal()
     .specialize()
     .toLiveSystem({
       name: 'gpu-inference',

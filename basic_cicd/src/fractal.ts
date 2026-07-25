@@ -53,7 +53,10 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Network — the VPC's address space is a governed guardrail. ──
       const network = bp.add(
-        VirtualNetwork({id: 'main-network', displayName: 'Main Network'}).withCidrBlock('10.0.0.0/16'),
+        VirtualNetwork({
+          id: 'main-network',
+          displayName: 'Main Network',
+        }).withCidrBlock('10.0.0.0/16'),
       );
 
       // ── Public subnet — carved from the VPC; cannot exist without it. ──
@@ -77,10 +80,14 @@ export function authorFractal() {
 
       // ── Compute — both VMs live in the public subnet. ──
       const apiServer = bp.add(
-        VirtualMachine({id: 'api-server', displayName: 'API Server'}).dependsOn(subnet),
+        VirtualMachine({id: 'api-server', displayName: 'API Server'}).dependsOn(
+          subnet,
+        ),
       );
       const webServer = bp.add(
-        VirtualMachine({id: 'web-server', displayName: 'Web Server'}).dependsOn(subnet),
+        VirtualMachine({id: 'web-server', displayName: 'Web Server'}).dependsOn(
+          subnet,
+        ),
       );
 
       // ── Link: web-server → api-server on TCP 8080. The blueprint owns all

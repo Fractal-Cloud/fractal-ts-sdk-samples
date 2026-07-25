@@ -11,14 +11,13 @@
  *     the governance scope a LiveSystem is deployed INTO. Its cloud-agent identity
  *     (tenant) is inherited from the management agent automatically.
  *
- * `deployEnvironment` create/updates both envs, pushes secrets + CI/CD profiles,
- * and initializes the cloud agents. Then a LiveSystem is deployed into the
- * operational env via `management.operational('prod').ref()`.
+ * `cloud.environments.deploy` create/updates both envs, pushes secrets + CI/CD
+ * profiles, and initializes the cloud agents. Then a LiveSystem is deployed into
+ * the operational env via `management.operational('prod').ref()`.
  */
 import {authorFractal} from './fractal';
 import {
-  deploy,
-  deployEnvironment,
+  createFractalCloudClient,
   ManagementEnvironment,
   OperationalEnvironment,
   AzureBlob,
@@ -28,11 +27,11 @@ const OWNER_ID = process.env['OWNER_ID'] ?? '';
 
 // How the Azure cloud agent authenticates to Azure, selectable via env var:
 //   - 'sp'   (default): a service principal (client id + secret) is passed to
-//              deployEnvironment, which initializes the agent with the secret.
+//              environments.deploy, which initializes the agent with the secret.
 //   - 'oidc':  workload-identity federation — no SP secret. The sample mints a
 //              short-lived OIDC token (e.g. the GitHub Actions id-token) and
-//              passes it as the federated token; deployEnvironment forwards it as
-//              the client assertion so the agent is initialized secretlessly.
+//              passes it as the federated token; environments.deploy forwards it
+//              as the client assertion so the agent is initialized secretlessly.
 const AGENT_AUTH = (
   process.env['AZURE_CLOUD_AGENT_AUTH'] ?? 'sp'
 ).toLowerCase();
@@ -42,6 +41,8 @@ const credentials = {
   clientId: process.env['SERVICE_ACCOUNT_ID']!,
   clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
 };
+
+const cloud = createFractalCloudClient(credentials);
 
 // ── Operational environment: 'prod' — where LiveSystems land. ──
 // It picks an Azure subscription; a default CI/CD deploy key and a secret are
@@ -127,7 +128,7 @@ async function main() {
   //    SDK forwards as the Azure client assertion — no secret leaves the runner.
   if (AGENT_AUTH === 'oidc') {
     const federatedToken = await fetchAzureFederatedToken();
-    await deployEnvironment(management, credentials, {
+    await cloud.environments.deploy(management, {
       agentInit: 'wait',
       providerCredentials: {
         azure: {
@@ -137,7 +138,7 @@ async function main() {
       },
     });
   } else {
-    await deployEnvironment(management, credentials, {
+    await cloud.environments.deploy(management, {
       agentInit: 'wait',
       providerCredentials: {
         azure: {
@@ -152,13 +153,12 @@ async function main() {
   //    typo-proof: `management.operational('prod')` throws if there is no
   //    operational env named 'prod'. To target the MANAGEMENT env instead, use
   //    `management.ref()`.
-  const liveSystem = authorFractal()
-    .specialize()
-    .toLiveSystem({
-      name: 'acme-uploads',
-      environment: management.operational('prod').ref(),
-      select: {uploads: AzureBlob({accountTier: 'Standard_LRS'})},
-    });
+  const fractal = authorFractal();
+  const liveSystem = fractal.specialize().toLiveSystem({
+    name: 'acme-uploads',
+    environment: management.operational('prod').ref(),
+    select: {uploads: AzureBlob({accountTier: 'Standard_LRS'})},
+  });
 
   const bc = liveSystem.boundedContext;
   console.log(
@@ -170,7 +170,11 @@ async function main() {
         liveSystem.name,
       ].join('/'),
   );
-  await deploy(liveSystem, credentials, {
+  // A blueprint and a LiveSystem are different entities. Register the
+  // reusable, vendor-agnostic blueprint first; the API rejects a LiveSystem
+  // whose Fractal is not registered.
+  await cloud.blueprints.create(fractal);
+  await cloud.liveSystems.deploy(liveSystem, {
     mode: (process.env['DEPLOY_MODE'] as 'wait' | 'fire-and-forget') ?? 'wait',
   });
 }

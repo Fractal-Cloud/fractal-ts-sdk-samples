@@ -51,7 +51,10 @@ export function authorFractal() {
       // ── The "where" — the managed container platform workloads run on.
       //    Cluster version and network policy are governed posture. ──
       const platform = bp.add(
-        ContainerPlatform({id: 'app-platform', displayName: 'Application Platform'})
+        ContainerPlatform({
+          id: 'app-platform',
+          displayName: 'Application Platform',
+        })
           .withKubernetesVersion('1.29') // guardrail
           .withNetworkPolicyProvider('calico'), // guardrail
       );
@@ -59,7 +62,10 @@ export function authorFractal() {
       // ── Database engine — capacity, HA, backups and engine version governed.
       //    Logical databases are added per service by withStatefulService. ──
       const dbms = bp.add(
-        RelationalDbms({id: 'app-dbms', displayName: 'Application Database Engine'})
+        RelationalDbms({
+          id: 'app-dbms',
+          displayName: 'Application Database Engine',
+        })
           .withHighAvailability('zone-redundant') // guardrail
           .withBackupRetentionDays(30) // guardrail
           .withStorageGb(100) // guardrail
@@ -104,7 +110,10 @@ export function authorFractal() {
         logoutUris?: string[];
         scopes?: string[];
       }) => {
-        const db = RelationalDatabase({id: `${svc.name}-db`, displayName: `${svc.name} database`})
+        const db = RelationalDatabase({
+          id: `${svc.name}-db`,
+          displayName: `${svc.name} database`,
+        })
           .withCharset('UTF8') // architect-governed default
           .withCollation('en_US.utf8'); // architect-governed default
         const workload = Workload({id: svc.name, displayName: svc.name})
@@ -126,7 +135,9 @@ export function authorFractal() {
           // agent grants; connection env (DB_HOST/PORT/NAME/USERNAME and a
           // DB_PASSWORD_REF secret reference) is injected from the database's
           // output fields at reconciliation time — never carried on the link.
-          link(workload, db, {access: 'read-write'} satisfies RelationalDatabaseLink),
+          link(workload, db, {
+            access: 'read-write',
+          } satisfies RelationalDatabaseLink),
           // The workload authenticates against the identity provider; this link
           // provisions exactly one `web` app client.
           link(workload, s.idp, idpClient),
