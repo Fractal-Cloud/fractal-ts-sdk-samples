@@ -4,10 +4,10 @@
  * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
  * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .VirtualMachine). It
  * NEVER names a vendor or an offer — those are chosen later, per component, when
- * a LiveSystem is built (see index.ts). This particular sample is deployed to a
+ * a LiveSystem is built (see vmware.ts). This particular sample is deployed to a
  * single on-prem vendor (VMware vSphere), but the blueprint itself carries no
  * trace of that: retarget it to any other vendor by swapping the selection in
- * index.ts, and this Fractal supports it unchanged.
+ * vmware.ts, and this Fractal supports it unchanged.
  *
  * What lives here:
  *   - STRUCTURE — which Components exist, their DEPENDENCIES (`.dependsOn`) and
@@ -22,7 +22,7 @@
  *     routes to declare), so `operations` is omitted entirely.
  *   - VENDOR PARAMETERS — the VsphereVm `template`, the VspherePortGroup
  *     `dvSwitchName`, the VsphereVlan `vlanId`, ... are OFFER config, passed at
- *     selection time in index.ts. Never on the blueprint.
+ *     selection time in vmware.ts. Never on the blueprint.
  *
  * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
@@ -43,7 +43,7 @@ const boundedContextId = {
  * Author the "basic on-prem" Fractal: a virtual network with a server subnet and
  * two VMs (an api server behind a web server). Returns a reusable, immutable
  * Fractal — `.specialize()` never mutates it, so it is safe to author once and
- * instantiate many times (see index.ts).
+ * instantiate many times (see vmware.ts).
  */
 export function authorFractal() {
   return createFractal({
@@ -98,6 +98,6 @@ export function authorFractal() {
 
     // No `operations`: this on-prem IaaS pattern has no application-level verbs to
     // expose. Everything here is a guardrail (locked) or offer config (chosen in
-    // index.ts — the vSphere template, dvSwitch, vlanId).
+    // vmware.ts — the vSphere template, dvSwitch, vlanId).
   });
 }

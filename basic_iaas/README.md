@@ -59,6 +59,19 @@ Offer config (amiId, vmSize, machineType, shape, serverType, …) is supplied as
 literals in the `select` map of each per-cloud entrypoint — edit that map to
 change vendor parameters.
 
+## Quick start
+
+```bash
+cp .sample.env .env   # then fill in the blanks
+./deploy.sh           # builds and deploys the default target (aws)
+./deploy.sh azure     # ...or any other target
+```
+
+`deploy.sh` loads `.env` (variables already exported in the shell win, so CI can
+inject secrets without a file), then runs `npm install`, `npm run compile` and
+`node build/src/<target>.js`, propagating its exit code. `.sample.env` lists every
+variable this sample reads, with the required ones left blank. Targets: `aws` `azure` `gcp` `oci` `hetzner`.
+
 ## Environment variables
 
 | Variable | Required | Description |

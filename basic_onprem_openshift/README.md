@@ -39,6 +39,18 @@ node build/src/openshift.js   # deploy on OpenShift
 
 The deploy runs in `wait` mode: structured log lines are emitted to stdout on each poll round until the LiveSystem reaches Active.
 
+## Quick start
+
+```bash
+cp .sample.env .env   # then fill in the blanks
+./deploy.sh           # builds and deploys the default target (openshift)
+```
+
+`deploy.sh` loads `.env` (variables already exported in the shell win, so CI can
+inject secrets without a file), then runs `npm install`, `npm run compile` and
+`node build/src/<target>.js`, propagating its exit code. `.sample.env` lists every
+variable this sample reads, with the required ones left blank. This sample has a single target, `openshift`.
+
 ## Environment variables
 
 | Variable | Required | Default | Description |

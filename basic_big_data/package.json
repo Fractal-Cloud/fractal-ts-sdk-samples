@@ -2,8 +2,6 @@
   "name": "basic-big-data",
   "version": "0.0.1",
   "description": "Fractal + Live System sample — BigData domain (Databricks workspace + cluster + job + MLflow)",
-  "main": "build/src/index.js",
-  "types": "build/src/index.d.ts",
   "files": [
     "build/src"
   ],

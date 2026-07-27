@@ -124,6 +124,21 @@ key (`instanceType` / `serverType`).
 To serve the larger `Qwen2.5-72B-AWQ` (~40 GB), bump `machineType` to
 `a2-highgpu-2g` (2× A100) and add `--tensor-parallel-size 2` to the vLLM args.
 
+## Quick start
+
+```bash
+cp .sample.env .env   # then fill in the blanks
+./deploy.sh           # builds and deploys the default target (gcp)
+./deploy.sh destroy   # ...or tear the LiveSystem down again
+```
+
+`deploy.sh` loads `.env` (variables already exported in the shell win, so CI can
+inject secrets without a file), then runs `npm install`, `npm run compile` and
+`node build/src/<target>.js`, propagating its exit code. `.sample.env` lists every
+variable this sample reads, with the required ones left blank. Targets: `gcp`
+(deploy) and `destroy` (teardown) — both share the `select` map in
+`src/live_system.ts`.
+
 ## Environment variables
 
 | Variable | Required | Description |

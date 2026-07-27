@@ -6,7 +6,7 @@
  * persistent storage (ObjectStorage), and a legacy VirtualMachine. The blueprint
  * references only abstract Components — it NEVER names a vendor or an offer. The
  * OpenShift (RedHat) offers are chosen later, per component, when a LiveSystem is
- * built (see index.ts). Add a new vendor to the catalogue tomorrow and this
+ * built (see openshift.ts). Add a new vendor to the catalogue tomorrow and this
  * Fractal supports it unchanged.
  *
  * Two kinds of specialization live here:
@@ -43,7 +43,7 @@ const boundedContextId = {
 /**
  * Author the "on-prem application" Fractal. Returns a reusable, immutable
  * Fractal: `.specialize()` never mutates it, so it is safe to author once and
- * instantiate many times (see index.ts).
+ * instantiate many times (see openshift.ts).
  */
 export function authorFractal() {
   return createFractal({

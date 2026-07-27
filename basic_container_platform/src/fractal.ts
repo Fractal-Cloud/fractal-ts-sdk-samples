@@ -5,7 +5,7 @@
  * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .SecurityGroup,
  * .ContainerPlatform and CustomWorkloads.Workload). It NEVER names a vendor or
  * an offer — those are chosen later, per component, when a LiveSystem is built
- * (see index.ts). Add a new vendor to the catalogue tomorrow and this Fractal
+ * (see <cloud>.ts). Add a new vendor to the catalogue tomorrow and this Fractal
  * supports it unchanged.
  *
  * Two kinds of specialization live here:
@@ -44,7 +44,7 @@ const boundedContextId = {
 /**
  * Author the "governed container platform" Fractal. Returns a reusable,
  * immutable Fractal: `.specialize()` never mutates it, so it is safe to author
- * once and instantiate many times (see index.ts).
+ * once and instantiate many times (see <cloud>.ts).
  */
 export function authorFractal() {
   return createFractal({

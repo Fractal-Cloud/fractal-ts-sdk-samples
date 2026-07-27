@@ -4,7 +4,7 @@
  * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
  * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .SecurityGroup,
  * .VirtualMachine). It NEVER names a vendor or an offer — those are chosen later,
- * per component, when a LiveSystem is built (see index.ts). Add a new vendor to
+ * per component, when a LiveSystem is built (see <cloud>.ts). Add a new vendor to
  * the catalogue tomorrow and this Fractal supports it unchanged.
  *
  * What lives here:
@@ -19,7 +19,7 @@
  *     pattern exposes no application-domain choices (no folders/schemas/routes to
  *     declare), so `operations` is omitted entirely.
  *   - VENDOR PARAMETERS — amiId, instanceType, vmSize, machineType, shape, ... are
- *     OFFER config, passed at selection time in index.ts. Never on the blueprint.
+ *     OFFER config, passed at selection time in <cloud>.ts. Never on the blueprint.
  *
  * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
@@ -41,7 +41,7 @@ const boundedContextId = {
  * Author the "basic IaaS" Fractal: a virtual network with a public subnet, a
  * web-facing security group, and two VMs (an api server behind a web server).
  * Returns a reusable, immutable Fractal — `.specialize()` never mutates it, so it
- * is safe to author once and instantiate many times (see index.ts).
+ * is safe to author once and instantiate many times (see <cloud>.ts).
  */
 export function authorFractal() {
   return createFractal({
@@ -111,6 +111,6 @@ export function authorFractal() {
     },
 
     // No `operations`: this IaaS pattern has no application-level verbs to expose.
-    // Everything here is a guardrail (locked) or offer config (chosen in index.ts).
+    // Everything here is a guardrail (locked) or offer config (chosen in <cloud>.ts).
   });
 }

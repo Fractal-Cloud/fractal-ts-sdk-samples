@@ -5,7 +5,7 @@
  * Components (BigData.ComputeCluster, BigData.DataProcessingJob,
  * BigData.MlExperiment, BigData.Datalake). It NEVER names a vendor or an offer —
  * those are chosen later, per component, when a LiveSystem is built (see
- * index.ts). Add a new vendor to the catalogue tomorrow and this Fractal
+ * <cloud>.ts). Add a new vendor to the catalogue tomorrow and this Fractal
  * supports it unchanged.
  *
  * Two kinds of specialization live here:
@@ -38,7 +38,7 @@ const boundedContextId = {
 /**
  * Author the "governed big data" Fractal. Returns a reusable, immutable Fractal:
  * `.specialize()` never mutates it, so it is safe to author once and instantiate
- * many times (see index.ts).
+ * many times (see <cloud>.ts).
  */
 export function authorFractal() {
   return createFractal({
