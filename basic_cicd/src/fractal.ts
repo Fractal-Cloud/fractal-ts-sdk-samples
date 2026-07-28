@@ -4,7 +4,7 @@
  * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
  * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .SecurityGroup,
  * .VirtualMachine). It NEVER names a vendor or an offer — those are chosen later,
- * per component, when a LiveSystem is built (see index.ts). Add a new vendor to
+ * per component, when a LiveSystem is built (see aws.ts). Add a new vendor to
  * the catalogue tomorrow and this Fractal supports it unchanged.
  *
  * Two kinds of specialization can live in a Fractal:
@@ -19,7 +19,7 @@
  * layer making domain choices, so there are NO operations — the `operations`
  * key is deliberately omitted. Everything here is a locked guardrail. Vendor-only
  * knobs (amiId, instanceType, ...) are NOT here; they are offer config selected
- * in index.ts.
+ * in aws.ts.
  *
  * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
@@ -40,7 +40,7 @@ const boundedContextId = {
 /**
  * Author the "basic CI/CD" Fractal. Returns a reusable, immutable Fractal:
  * `.specialize()` never mutates it, so it is safe to author once and instantiate
- * many times (see index.ts).
+ * many times (see aws.ts).
  */
 export function authorFractal() {
   return createFractal({
@@ -104,6 +104,6 @@ export function authorFractal() {
     },
     // No `operations`: this AWS-only IaaS/CI-CD sample has no application-level
     // verbs. All specialization above is architect guardrails; vendor knobs are
-    // offer config chosen at selection time (index.ts).
+    // offer config chosen at selection time (aws.ts).
   });
 }

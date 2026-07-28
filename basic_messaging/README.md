@@ -41,6 +41,19 @@ Pick a provider by running its entrypoint: `azure.js` · `gcp.js`
 node build/src/gcp.js
 ```
 
+## Quick start
+
+```bash
+cp .sample.env .env   # then fill in the blanks
+./deploy.sh           # builds and deploys the default target (azure)
+./deploy.sh gcp       # ...or any other target
+```
+
+`deploy.sh` loads `.env` (variables already exported in the shell win, so CI can
+inject secrets without a file), then runs `npm install`, `npm run compile` and
+`node build/src/<target>.js`, propagating its exit code. `.sample.env` lists every
+variable this sample reads, with the required ones left blank. Targets: `azure` `gcp`.
+
 ## Environment variables
 
 ### Common (all providers)

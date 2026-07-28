@@ -97,6 +97,19 @@ This pulls on any cluster with no registry setup and no pull secret.
   a production image should honour it.
 - Multi-arch is safest (cluster nodes may be arm64 or amd64).
 
+## Quick start
+
+```bash
+cp .sample.env .env   # then fill in the blanks
+./deploy.sh           # builds and deploys the default target (azure)
+./deploy.sh mixed     # ...or any other target
+```
+
+`deploy.sh` loads `.env` (variables already exported in the shell win, so CI can
+inject secrets without a file), then runs `npm install`, `npm run compile` and
+`node build/src/<target>.js`, propagating its exit code. `.sample.env` lists every
+variable this sample reads, with the required ones left blank. Targets: `azure` `mixed`.
+
 ## Environment variables
 
 | Variable | Required | Description |

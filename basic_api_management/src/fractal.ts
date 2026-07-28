@@ -3,7 +3,7 @@
  *
  * This is a vendor-AGNOSTIC Fractal: the blueprint references only the abstract
  * Component (APIManagement.ApiGateway). It NEVER names a vendor or an offer —
- * those are chosen later when a LiveSystem is built (see index.ts). Add a new
+ * those are chosen later when a LiveSystem is built (see <cloud>.ts). Add a new
  * gateway vendor to the catalogue tomorrow and this Fractal supports it
  * unchanged.
  *
@@ -48,7 +48,7 @@ const boundedContextId = {
 /**
  * Author the "governed API gateway" Fractal. Returns a reusable, immutable
  * Fractal: `.specialize()` never mutates it, so it is safe to author once and
- * instantiate many times (see index.ts).
+ * instantiate many times (see <cloud>.ts).
  */
 export function authorFractal() {
   return createFractal({

@@ -2,8 +2,6 @@
   "name": "basic-environment",
   "version": "0.0.1",
   "description": "Environment management sample — init a management + operational environment (cloud agents, secrets, CI/CD), then deploy a LiveSystem into the operational environment",
-  "main": "build/src/azure.js",
-  "types": "build/src/azure.d.ts",
   "files": [
     "build/src"
   ],

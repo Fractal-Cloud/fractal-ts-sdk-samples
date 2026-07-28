@@ -4,7 +4,7 @@
  * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
  * Components (Observability.Monitoring, Observability.Tracing,
  * Observability.Logging). It NEVER names a vendor or an offer — those are chosen
- * later, per component, when a LiveSystem is built (see index.ts).
+ * later, per component, when a LiveSystem is built (see caas.ts).
  *
  * Two kinds of specialization can live here:
  *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
@@ -36,7 +36,7 @@ const boundedContextId = {
 /**
  * Author the "governed observability" Fractal. Returns a reusable, immutable
  * Fractal: `.specialize()` never mutates it, so it is safe to author once and
- * instantiate many times (see index.ts).
+ * instantiate many times (see caas.ts).
  */
 export function authorFractal() {
   return createFractal({
