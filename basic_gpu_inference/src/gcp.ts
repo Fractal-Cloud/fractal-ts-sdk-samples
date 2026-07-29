@@ -10,6 +10,7 @@
  * Deploys in `wait` mode by default — blocks until Active (or fails). Set
  * DEPLOY_MODE=fire-and-forget to submit and return immediately.
  */
+import {fatal} from './fatal';
 import {
   buildFractal,
   buildLiveSystem,
@@ -53,7 +54,4 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(fatal);

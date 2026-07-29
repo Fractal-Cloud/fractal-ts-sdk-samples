@@ -15,6 +15,7 @@
  * profiles, and initializes the cloud agents. Then a LiveSystem is deployed into
  * the operational env via `management.operational('prod').ref()`.
  */
+import {fatal} from './fatal';
 import {authorFractal} from './fractal';
 import {
   createFractalCloudClient,
@@ -55,10 +56,52 @@ let prod = OperationalEnvironment({
   subscriptionId: process.env['AZURE_OPERATIONAL_SUBSCRIPTION_ID'] ?? '',
 });
 
+/**
+ * Read SSH_PRIVATE_KEY and insist it is a COMPLETE PEM key.
+ *
+ * A truthiness guard is not enough. A PEM key spans several lines, and a
+ * transport that cannot carry newlines leaves only the first one behind —
+ * `-----BEGIN OPENSSH PRIVATE KEY-----`, which is perfectly truthy. That would
+ * register a structurally invalid deploy key against the customer's
+ * environment, and the failure would surface only later, at git-clone time
+ * inside a pipeline, arbitrarily far from the cause. Fail here instead.
+ *
+ * CI secret stores that cannot hold real newlines commonly emit the single-line
+ * form with literal `\n` separators, so that spelling is accepted and converted.
+ */
+function readSshPrivateKey(): string | undefined {
+  const raw = process.env['SSH_PRIVATE_KEY'];
+  if (raw === undefined || raw.trim().length === 0) {
+    return undefined;
+  }
+  const pem = (raw.includes('\n') ? raw : raw.replace(/\\n/g, '\n')).trim();
+  const lines = pem.split('\n');
+  const complete =
+    lines.length > 2 &&
+    /^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----$/.test(lines[0].trim()) &&
+    /^-----END [A-Z0-9 ]*PRIVATE KEY-----$/.test(
+      lines[lines.length - 1].trim(),
+    );
+  if (!complete) {
+    // Report the SHAPE only. The value is a private key, or a fragment of one,
+    // and this message travels to stderr and into CI logs.
+    throw new Error(
+      `SSH_PRIVATE_KEY is set but is not a complete PEM private key (${lines.length} line(s)). ` +
+        'A PEM key spans several lines, so in .env it must be quoted:\n' +
+        '  SSH_PRIVATE_KEY="-----BEGIN OPENSSH PRIVATE KEY-----\n' +
+        '  ...\n' +
+        '  -----END OPENSSH PRIVATE KEY-----"\n' +
+        'The single-line form with literal \\n separators is also accepted. ' +
+        'Leave SSH_PRIVATE_KEY empty to create the environment without a CI/CD profile.',
+    );
+  }
+  return pem;
+}
+
 // The CI/CD profile and the secret are OPTIONAL. Only attach them when a real
 // value is supplied — the SDK rejects an empty secret value / ssh key, so
 // attaching them with an empty-string fallback would fail validation.
-const sshPrivateKeyData = process.env['SSH_PRIVATE_KEY'];
+const sshPrivateKeyData = readSshPrivateKey();
 if (sshPrivateKeyData) {
   prod = prod.withDefaultCiCdProfile({
     shortName: 'default',
@@ -179,7 +222,4 @@ async function main() {
   });
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(fatal);

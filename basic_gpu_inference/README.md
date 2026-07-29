@@ -129,8 +129,12 @@ To serve the larger `Qwen2.5-72B-AWQ` (~40 GB), bump `machineType` to
 ```bash
 cp .sample.env .env   # then fill in the blanks
 ./deploy.sh           # builds and deploys the default target (gcp)
-./deploy.sh destroy   # ...or tear the LiveSystem down again
+./deploy.sh destroy   # ...or tear the LiveSystem down again (asks to confirm)
 ```
+
+`destroy` cannot be undone, so it is gated: run interactively it prompts for the
+word `destroy`, and with no TTY (CI) it refuses unless `CONFIRM_DESTROY=yes` is
+set — `CONFIRM_DESTROY=yes ./deploy.sh destroy`.
 
 `deploy.sh` loads `.env` (variables already exported in the shell win, so CI can
 inject secrets without a file), then runs `npm install`, `npm run compile` and

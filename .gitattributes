@@ -1,0 +1,6 @@
+# Shell scripts and the .env templates must reach every checkout with LF line
+# endings. deploy.sh now tolerates a CRLF .env, but normalising here stops the
+# problem at the source: a CRLF deploy.sh has a broken shebang on macOS/Linux,
+# and without this a Windows editor silently rewrites .sample.env on save.
+*.sh            text eol=lf
+.sample.env     text eol=lf
