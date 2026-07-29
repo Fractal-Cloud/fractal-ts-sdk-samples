@@ -8,7 +8,7 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 
 - Node.js 18+
 - A Fractal Cloud account with a service account
-- Every sample pins `"@fractal_cloud/sdk": "^2.4.4"`
+- Every sample pins `"@fractal_cloud/sdk": "^2.4.5"`
 
 ## Samples
 
@@ -71,6 +71,7 @@ Every sample ships a `deploy.sh` and a `.sample.env`:
 ```bash
 cd basic_iaas         # or any sample directory
 cp .sample.env .env   # then fill in the blanks
+chmod 600 .env        # it holds a credential; the default 644 is world-readable
 ./deploy.sh           # build and deploy the sample's default target
 ./deploy.sh azure     # ...or pick a target; ./deploy.sh --help lists them
 ```
@@ -83,10 +84,58 @@ exported in the shell wins over `.env`, so CI can inject secrets without writing
 a file. `.env` is git-ignored; `.sample.env` is the committed template and lists
 every variable that sample reads, required ones left blank.
 
+**`.env` format.** One `KEY=value` per line. Blank lines and lines starting with
+`#` are skipped, an optional leading `export ` is ignored, whitespace around
+`KEY` and around an unquoted value is trimmed, and CRLF line endings are
+tolerated. Quote a value that contains spaces or `#`; only the matching outer
+pair of quotes is removed, so a secret ending in the *other* quote character
+keeps it.
+
+Exactly one kind of value may span several lines: a **PEM block**, whose opening
+line must be the armor itself. Nothing else may, and an unterminated quote on any
+other value is refused where it occurs instead of swallowing the lines beneath it
+— swallowing them is how a credential written further down `.env` ended up inside
+an unrelated variable, and from there into a log:
+
+```bash
+SSH_PRIVATE_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAA...
+-----END OPENSSH PRIVATE KEY-----"
+```
+
+Inline comments are **not** stripped from a value (`#` is a legal secret
+character), so keep comments on their own line — including after a closing quote,
+which is itself an error rather than a guess. A malformed line — no `=`, an
+unterminated quote, text after the closing quote, a line inside a PEM block that
+is not PEM content, an invalid variable name, or the same key assigned twice — is
+a hard error naming the offending `.env` line by *number*; the content is never
+echoed, because the file holds secrets.
+
+Two consequences worth stating outright. `.env` assigns **environment
+variables**, so it can set `PATH` or `NODE_OPTIONS` and those are inherited by
+`npm`, `tsc` and `node` — treat the file as executable input and keep it
+`chmod 600`. And a key may appear only **once**: rather than pick the first or the
+last silently, `deploy.sh` refuses, because a customer appending a corrected
+credential below a stale one is exactly how the opaque `401` this parser exists
+to prevent gets reintroduced.
+
 The **targets** are just the entrypoint files: `aws`, `azure`, `gcp`, `oci`,
 `hetzner`, `caas`, `vmware`, `openshift`, `mixed`, and — in
 `basic_gpu_inference` — `destroy`. Each sample's `deploy.sh --help` prints its
 own list.
+
+`destroy` is an irreversible teardown, so it is the one target that asks for
+confirmation: interactively it prompts for the word `destroy`, and with no TTY
+(CI) it refuses unless `CONFIRM_DESTROY=yes` is set.
+
+```bash
+./deploy.sh destroy                     # prompts before tearing anything down
+CONFIRM_DESTROY=yes ./deploy.sh destroy # non-interactive, e.g. in CI
+```
+
+When a deployment fails, the samples print the HTTP status, the error message and
+the server's response body — never the error object itself, whose Node inspection
+includes the raw request headers and therefore the service-account secret.
 
 To run without the script, do the same thing by hand:
 

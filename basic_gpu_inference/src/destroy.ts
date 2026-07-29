@@ -7,6 +7,7 @@
  * live_system.ts), so bring-up/tear-down cycles are symmetric and repeatable.
  * The GPU box is expensive — run this the moment a run finishes.
  */
+import {fatal} from './fatal';
 import {buildLiveSystem, cloud, logLiveSystemId} from './live_system';
 
 async function main() {
@@ -18,7 +19,4 @@ async function main() {
   console.log('destroyed');
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(fatal);

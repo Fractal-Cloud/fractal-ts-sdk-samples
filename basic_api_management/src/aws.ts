@@ -4,6 +4,7 @@
  * self-contained; the ONLY cloud-specific code is the `select` map below.
  *   npm run compile && node build/src/aws.js
  */
+import {fatal} from './fatal';
 import {authorFractal} from './fractal';
 import {
   createFractalCloudClient,
@@ -62,7 +63,4 @@ async function main() {
   });
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(fatal);

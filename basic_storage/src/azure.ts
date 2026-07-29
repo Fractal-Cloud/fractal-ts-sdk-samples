@@ -10,6 +10,7 @@
  *
  *   npm run compile && node build/src/azure.js
  */
+import {fatal} from './fatal';
 import {authorFractal} from './fractal';
 import {
   createFractalCloudClient,
@@ -66,7 +67,4 @@ async function main() {
   });
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(fatal);

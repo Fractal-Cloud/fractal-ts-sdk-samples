@@ -14,6 +14,7 @@
  * own family. Swapping the IdP to AWS is a one-line change (see mixed.ts, which
  * selects Cognito) — the Fractal itself never changes.
  */
+import {fatal} from './fatal';
 import {authorFractal} from './fractal';
 import {
   createFractalCloudClient,
@@ -82,7 +83,4 @@ async function main() {
   });
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(fatal);

@@ -15,6 +15,7 @@
  * (only Azure/GCP/Aruba satisfy Storage.RelationalDbms). Add an AWS RDS offer to
  * the SDK later and this line becomes a one-word swap — the Fractal never changes.
  */
+import {fatal} from './fatal';
 import {authorFractal} from './fractal';
 import {
   createFractalCloudClient,
@@ -80,7 +81,4 @@ async function main() {
   });
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(fatal);
