@@ -11,10 +11,19 @@
  * secret and the client id. These samples are the documented CI entrypoint, and
  * CI logs are long-lived, widely readable and frequently exported.
  *
+ * SDK 2.5.0 closed that hole at the source: every API operation now throws
+ * `FractalApiError`, which stores only scrubbed scalars (`status`, `method`,
+ * `url`, `reasonCode`, `responseBody`) and drops the superagent objects entirely,
+ * so there is no header block left to walk. This file is NOT thereby redundant.
+ * It still covers what the SDK cannot see: secrets that never travel through it
+ * (`SSH_PASSPHRASE`, `DB_PASSWORD`, `ACTIONS_ID_TOKEN_REQUEST_TOKEN`), errors
+ * raised by other libraries, and the SUCCESS path — `console.log`, which no error
+ * type can reach.
+ *
  * Three layers, because one is not enough:
- *   1. Print only fields that cannot carry request headers — status, message and
- *      the server's response body. Never the error object, never `stack`,
- *      never `response.res` / `response.req`.
+ *   1. Print only fields that cannot carry request headers — status, message,
+ *      the failing method/url and the server's response body. Never the error
+ *      object, never `stack`, never `response.res` / `response.req`.
  *   2. Scrub any known secret VALUE out of the text on the way out, which also
  *      covers leak paths nobody has enumerated yet.
  *   3. Cover the routes that never reach `fatal` at all: `unhandledRejection`,
@@ -157,6 +166,20 @@ interface InspectableError {
   status?: unknown;
   message?: unknown;
   name?: unknown;
+  /** SDK >= 2.5.0: `FractalApiError.reasonCode`, the API's machine-readable cause. */
+  reasonCode?: unknown;
+  /** SDK >= 2.5.0: `FractalApiError.responseBody`, already redacted and clipped. */
+  responseBody?: unknown;
+  /** SDK >= 2.5.0: the failing request, with any query string already removed. */
+  method?: unknown;
+  url?: unknown;
+  /**
+   * SDK <= 2.4.5 shape. `FractalApiError` carries no `response` at all, so this
+   * is dead for an SDK error — kept because `fatal` is also the process-level
+   * handler for failures this repo does not raise (`basic_environment` calls
+   * GitHub's OIDC endpoint through `fetch`, and any dependency may still throw a
+   * superagent-shaped error).
+   */
   response?: {body?: unknown};
   cause?: unknown;
 }
@@ -195,6 +218,27 @@ function describeBody(body: unknown): string {
 }
 
 /**
+ * Render a response body the SDK has ALREADY reduced to a string — 2.5.0's
+ * `FractalApiError.responseBody`. It arrives redacted and length-bounded, so this
+ * is not the SDK's redaction repeated; it is this module's own set applied on top.
+ * The two sets differ: the SDK redacts the secrets IT sent, while this module also
+ * knows `SSH_PASSPHRASE`, `DB_PASSWORD` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, which
+ * never travel through the SDK at all.
+ *
+ * Not routed through `describeBody`: the value is already serialized, so
+ * `JSON.stringify` would escape it a second time and print a wall of `\"`. Clipping
+ * still runs last, for the reason given on `describeBody`.
+ */
+function describeBodyText(body: string): string {
+  const text = redactText(body, DIAGNOSTIC_MIN_REDACTABLE);
+  if (text.length > MAX_BODY_CHARS) {
+    const head = text.slice(0, MAX_BODY_CHARS);
+    return `\n  response body: ${head}… [clipped, ${text.length} chars]`;
+  }
+  return `\n  response body: ${text}`;
+}
+
+/**
  * A one-line-per-layer summary of a failure. The SDK wraps some errors as
  * `new Error(hint, {cause: original})` and the original still carries the header
  * block, so the cause chain is walked field-by-field rather than printed.
@@ -214,7 +258,21 @@ function describe(err: unknown, depth = 0): string {
     message = 'Error';
   }
   let out = `${status}${message}`;
-  if (e.response?.body !== undefined && e.response.body !== null) {
+  // The failing call, so a 403 says WHICH request was rejected. Both fields are
+  // scrubbed by the SDK and the url has its query string removed before it gets
+  // here, so neither can carry a token.
+  if (typeof e.method === 'string' && typeof e.url === 'string') {
+    out += `\n  request: ${e.method} ${e.url}`;
+  }
+  // `reasonCode` used to be read off `response.body`, where it was printed as part
+  // of the body. 2.5.0 lifts it to the top level, so printing the body alone would
+  // silently lose the one field that names the cause.
+  if (typeof e.reasonCode === 'string' && e.reasonCode.length > 0) {
+    out += `\n  reasonCode: ${e.reasonCode}`;
+  }
+  if (typeof e.responseBody === 'string' && e.responseBody.length > 0) {
+    out += describeBodyText(e.responseBody);
+  } else if (e.response?.body !== undefined && e.response.body !== null) {
     out += describeBody(e.response.body);
   }
   if (e.cause !== undefined && e.cause !== null && depth < 5) {
