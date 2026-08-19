@@ -20,7 +20,7 @@ withStatefulService('orders') adds, in one governed verb:
   link orders → idp        {clientType: web}      — provisions ONE web OAuth client
 ```
 
-The `orders` **Workload** is a portable `CustomWorkloads.CaaS.K8sWorkload`,
+The `orders` **Workload** is a portable `CustomWorkloads.CaaS.KubernetesWorkload`,
 emitted by the platform offer and deployed onto the cluster by the CaaS/Kubernetes
 agent — **not** by the cloud (AWS/Azure/GCP) agent.
 
