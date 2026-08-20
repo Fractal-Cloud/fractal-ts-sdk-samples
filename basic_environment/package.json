@@ -1,7 +1,7 @@
 {
   "name": "basic-environment",
   "version": "0.0.1",
-  "description": "Environment management sample — init a management + operational environment (cloud agents, secrets, CI/CD), then deploy a LiveSystem into the operational environment",
+  "description": "Environment management sample \u2014 init a management + operational environment (cloud agents, secrets, CI/CD), then deploy a LiveSystem into the operational environment",
   "files": [
     "build/src"
   ],
@@ -16,7 +16,7 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.5.1"
+    "@fractal_cloud/sdk": "^2.5.2"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",

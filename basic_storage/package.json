@@ -1,7 +1,7 @@
 {
   "name": "basic-storage",
   "version": "0.0.1",
-  "description": "Fractal + Live System sample — Storage domain (PostgreSQL DBMS + Database + Object Storage)",
+  "description": "Fractal + Live System sample \u2014 Storage domain (PostgreSQL DBMS + Database + Object Storage)",
   "files": [
     "build/src"
   ],
@@ -16,7 +16,7 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.5.1"
+    "@fractal_cloud/sdk": "^2.5.2"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",

@@ -1,7 +1,7 @@
 {
   "name": "basic-api-management",
   "version": "0.0.1",
-  "description": "Fractal + Live System sample — basic API Management (CloudFront, Azure API Management, GCP API Gateway)",
+  "description": "Fractal + Live System sample \u2014 basic API Management (CloudFront, Azure API Management, GCP API Gateway)",
   "files": [
     "build/src"
   ],
@@ -21,6 +21,6 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.5.1"
+    "@fractal_cloud/sdk": "^2.5.2"
   }
 }
