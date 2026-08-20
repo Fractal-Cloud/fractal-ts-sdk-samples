@@ -5,7 +5,7 @@
 #   ./deploy.sh              build and deploy the default target (azure)
 #   ./deploy.sh <target>     build and deploy a specific target
 #
-# Targets: azure mixed
+# Targets: aws azure mixed
 #
 # Configuration is read from ./.env — copy .sample.env to .env and fill it in.
 # Variables already exported in the shell win over .env, so CI can inject
@@ -20,7 +20,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 script_path="$script_dir/$(basename -- "${BASH_SOURCE[0]}")"
 cd "$script_dir"
 
-TARGETS=(azure mixed)
+TARGETS=(aws azure mixed)
 DEFAULT_TARGET=azure
 
 target="${1:-$DEFAULT_TARGET}"

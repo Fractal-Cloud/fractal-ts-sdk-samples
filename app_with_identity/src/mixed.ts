@@ -11,9 +11,10 @@
  * `withStatefulService` and emitted by the platform offer (Eks) as a portable
  * Kubernetes workload.
  *
- * Why the DB is on Azure: the catalogue has no AWS-managed relational offer yet
- * (only Azure/GCP/Aruba satisfy Storage.RelationalDbms). Add an AWS RDS offer to
- * the SDK later and this line becomes a one-word swap — the Fractal never changes.
+ * The DB is on Azure by CHOICE here, to show a LiveSystem spanning vendors — not
+ * for want of an AWS option. `AwsRdsPostgresDbms` satisfies the same component
+ * (see aws.ts for the all-AWS selection), so this line is a one-word swap in
+ * either direction and the Fractal never changes.
  */
 import {fatal} from './fatal';
 import {authorFractal} from './fractal';
@@ -56,8 +57,8 @@ async function main() {
       select: {
         'app-platform': Eks({}),
         idp: Cognito({}),
-        // DB on Azure: the SDK has no AWS managed relational offer yet, so the
-        // relational tier runs on Azure in this mixed-vendor LiveSystem.
+        // DB on Azure to demonstrate a cross-vendor LiveSystem; AwsRdsPostgresDbms
+        // would keep the whole system on AWS.
         'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-data'}),
       },
     });

@@ -29,6 +29,7 @@ agent — **not** by the cloud (AWS/Azure/GCP) agent.
 ```
 src/
   fractal.ts   # Cloud-agnostic blueprint + operations (withUserDirectory, withStatefulService)
+  aws.ts       # AWS EKS + AWS Cognito + Amazon RDS (all-AWS)
   mixed.ts     # AWS EKS + AWS Cognito + Azure Postgres (one mixed-vendor LiveSystem)
   azure.ts     # Azure AKS + Entra + Azure Postgres
 ```
@@ -108,7 +109,7 @@ cp .sample.env .env   # then fill in the blanks
 `deploy.sh` loads `.env` (variables already exported in the shell win, so CI can
 inject secrets without a file), then runs `npm install`, `npm run compile` and
 `node build/src/<target>.js`, propagating its exit code. `.sample.env` lists every
-variable this sample reads, with the required ones left blank. Targets: `azure` `mixed`.
+variable this sample reads, with the required ones left blank. Targets: `aws` `azure` `mixed`.
 
 ## Environment variables
 
@@ -132,6 +133,7 @@ export SERVICE_ACCOUNT_SECRET=<secret>
 export OWNER_ID=<uuid>
 export ENVIRONMENT_NAME=dev
 
+node build/src/aws.js       # AWS EKS + Cognito + Amazon RDS (all-AWS)
 node build/src/mixed.js     # AWS EKS + Cognito + Azure Postgres
 node build/src/azure.js     # Azure AKS + Entra + Azure Postgres
 ```
