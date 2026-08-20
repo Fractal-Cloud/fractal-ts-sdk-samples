@@ -73,12 +73,15 @@ naming the environment that already holds the claim.
 
 ### 2. A service principal with provisioning rights on both
 
-Initialization creates resource groups, networking, identities and role
-assignments, so the principal you authenticate as needs, **at subscription scope
-on both subscriptions**:
+Initialization creates resource groups, networking, identities, role
+assignments, a custom role definition and management groups. The rights differ
+per scope — granting the same pair on both subscriptions is **not** enough:
 
-- **Contributor**
-- **Role Based Access Control Administrator**
+| Scope | Roles | Why |
+|---|---|---|
+| Operational subscription | **Contributor** + **Role Based Access Control Administrator** | Creates resources, and assigns Contributor + RBAC Admin to the management env's managed identity. |
+| Management subscription | **Contributor** + **User Access Administrator** | Same, plus initialization creates a *custom role definition* (the agent's self-delete grant). That needs `Microsoft.Authorization/roleDefinitions/write`, which RBAC Administrator does **not** include — it covers role assignments only. Owner also works. |
+| Tenant | **Management Group Contributor**, at the Tenant Root Group | Initialization creates four management groups, two of them parented at the tenant root. Subscription-scope Contributor grants nothing at management-group scope. |
 
 Use a principal dedicated to this sample rather than a general-purpose CI
 identity — this is the only sample needing rights this broad, and scoping them to
@@ -87,18 +90,37 @@ two throwaway subscriptions keeps them out of everything else.
 ```bash
 APP_ID=$(az ad app create --display-name my-basic-environment-sample --query appId -o tsv)
 az ad sp create --id "$APP_ID"
+
+# Both subscriptions: create resources and assign roles.
 for sub in "$MGMT_SUB" "$OPER_SUB"; do
   az role assignment create --assignee "$APP_ID" --role "Contributor" \
     --scope "/subscriptions/$sub"
-  az role assignment create --assignee "$APP_ID" \
-    --role "Role Based Access Control Administrator" \
-    --scope "/subscriptions/$sub"
 done
+az role assignment create --assignee "$APP_ID" \
+  --role "Role Based Access Control Administrator" \
+  --scope "/subscriptions/$OPER_SUB"
+
+# Management subscription: also needs to CREATE a role definition, not just assign one.
+az role assignment create --assignee "$APP_ID" \
+  --role "User Access Administrator" --scope "/subscriptions/$MGMT_SUB"
+
+# Tenant: management groups live above subscriptions.
+az role assignment create --assignee "$APP_ID" \
+  --role "Management Group Contributor" \
+  --scope "/providers/Microsoft.Management/managementGroups/$AZURE_TENANT_ID"
 ```
 
-If the roles are missing, the subscription claim still succeeds and the run fails
-**later**, inside authentication or the first ARM call — which reads like a
-credential problem rather than a missing grant. Check role assignments first.
+If you want to avoid granting tenant-root and definition-write rights, both
+steps are idempotent, so an administrator can pre-create them once by hand: the
+`Fractal CaaS K8s Agent Self Delete (<subscriptionId>)` role definition, and the
+`mg-platform` / `mg-fractal-cloud` / `mg-landing-zones` groups. Then the sample's
+principal only needs Management Group Contributor on `mg-platform` and
+`mg-landing-zones` (to add its own child group) and no definition-write at all.
+
+Missing roles do not fail early. The subscription claim still succeeds and the
+run fails **later**, inside authentication or partway through provisioning —
+which reads like a credential problem rather than a missing grant. Check role
+assignments first, at all three scopes.
 
 ### 3. Pick an auth mode
 

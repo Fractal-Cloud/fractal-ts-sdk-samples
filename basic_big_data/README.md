@@ -5,17 +5,25 @@ Demonstrates a cloud-agnostic BigData workload using the Fractal Cloud TypeScrip
 ## What it provisions
 
 ```
+DistributedDataProcessing (analytics-workspace)
+                                    — Databricks workspace; hosts the three components below
 ComputeCluster (analytics-cluster)  — Databricks cluster (max 10 workers, 30-min auto-termination)
-DataProcessingJob (etl-job)         — Scheduled ETL job (depends on cluster)
-MlExperiment (fraud-model)          — MLflow experiment tracker
+DataProcessingJob (etl-job)         — Scheduled ETL job (depends on cluster + workspace)
+MlExperiment (fraud-model)          — MLflow experiment tracker (depends on workspace)
 Datalake (lake)                     — Versioned object storage (versioning enabled)
 ```
+
+A cluster, a job and an experiment are all tenants of a Databricks workspace, so
+each declares `dependsOn(workspace)`. That edge is not decoration: the platform
+reads it to decide which workspace to create the component in, and to order
+provisioning so tenants wait for the workspace. A workspace that is merely
+present in the same LiveSystem, or merely `link`ed, does not count.
 
 ## Project layout
 
 ```
 src/
-  fractal.ts   # Cloud-agnostic blueprint: cluster, job, MLflow, datalake; guardrails locked
+  fractal.ts   # Cloud-agnostic blueprint: workspace, cluster, job, MLflow, datalake; guardrails locked
   aws.ts       # Self-contained AWS entrypoint — copy and run
   azure.ts     # Self-contained Azure entrypoint — copy and run
   gcp.ts       # Self-contained GCP entrypoint — copy and run
@@ -33,9 +41,10 @@ only cloud-specific code; the blueprint in `fractal.ts` is identical across all.
 | Cluster max workers, auto-termination timeout | `fractal.ts` — guardrail |
 | ETL job retry policy | `fractal.ts` — guardrail |
 | Datalake object versioning | `fractal.ts` — guardrail |
+| Workspace → cluster / job / experiment dependencies | `fractal.ts` — structural |
 | Cluster → job dependency | `fractal.ts` — structural |
 | Cluster name, job schedule, experiment display name | `fractal.ts` — operations (app-level, not locked) |
-| Vendor-specific offer config (bucket name, resource group, etc.) | per-cloud entrypoint — offer config |
+| Vendor-specific offer config (workspace pricing tier, bucket name, resource group, etc.) | per-cloud entrypoint — offer config |
 
 ## Selecting a provider
 

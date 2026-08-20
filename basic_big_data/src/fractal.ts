@@ -2,11 +2,11 @@
  * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
  * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
- * Components (BigData.ComputeCluster, BigData.DataProcessingJob,
- * BigData.MlExperiment, BigData.Datalake). It NEVER names a vendor or an offer —
- * those are chosen later, per component, when a LiveSystem is built (see
- * <cloud>.ts). Add a new vendor to the catalogue tomorrow and this Fractal
- * supports it unchanged.
+ * Components (BigData.DistributedDataProcessing, BigData.ComputeCluster,
+ * BigData.DataProcessingJob, BigData.MlExperiment, BigData.Datalake). It NEVER
+ * names a vendor or an offer — those are chosen later, per component, when a
+ * LiveSystem is built (see <cloud>.ts). Add a new vendor to the catalogue
+ * tomorrow and this Fractal supports it unchanged.
  *
  * Two kinds of specialization live here:
  *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
@@ -25,6 +25,7 @@ import {
   createFractal,
   ComputeCluster,
   DataProcessingJob,
+  DistributedDataProcessing,
   MlExperiment,
   Datalake,
 } from '@fractal_cloud/sdk/model';
@@ -45,10 +46,20 @@ export function authorFractal() {
     id: 'basic-big-data',
     version: {major: 1, minor: 0, patch: 0},
     description:
-      'Governed data platform: a Spark cluster, a scheduled ETL job, an ML ' +
-      'experiment tracker, and a versioned data lake.',
+      'Governed data platform: a Spark workspace hosting a cluster, a ' +
+      'scheduled ETL job, an ML experiment tracker, and a versioned data lake.',
     boundedContextId,
     blueprint: bp => {
+      // ── The workspace the other BigData components live in. Each tenant
+      //    declares `dependsOn(workspace)`: that edge is how the platform knows
+      //    WHICH workspace to create it in, and it orders provisioning. ──
+      const workspace = bp.add(
+        DistributedDataProcessing({
+          id: 'analytics-workspace',
+          displayName: 'Analytics Workspace',
+        }),
+      );
+
       // ── Compute cluster — capacity + lifecycle are governed. The app may name
       //    the cluster (withClusterName op), but never resize it. ──
       const cluster = bp.add(
@@ -57,7 +68,8 @@ export function authorFractal() {
           displayName: 'Analytics Cluster',
         })
           .withMaxWorkers(10) // guardrail: capacity ceiling
-          .withAutoTerminationMinutes(30), // guardrail: idle shutdown
+          .withAutoTerminationMinutes(30) // guardrail: idle shutdown
+          .dependsOn(workspace), // structural: runs in the workspace
       );
 
       // ── ETL job — retry policy is governed; cannot run before the cluster.
@@ -65,13 +77,17 @@ export function authorFractal() {
       const job = bp.add(
         DataProcessingJob({id: 'etl-job', displayName: 'ETL Job'})
           .withMaxRetries(3) // guardrail: retry policy
-          .dependsOn(cluster), // structural: needs the cluster
+          .dependsOn(cluster) // structural: needs the cluster
+          .dependsOn(workspace), // structural: runs in the workspace
       );
 
       // ── ML experiment tracker. The app owns its display name
       //    (withExperimentName op); no infra guardrails to govern. ──
       const experiment = bp.add(
-        MlExperiment({id: 'fraud-model', displayName: 'Fraud Detection Model'}),
+        MlExperiment({
+          id: 'fraud-model',
+          displayName: 'Fraud Detection Model',
+        }).dependsOn(workspace), // structural: tracked in the workspace
       );
 
       // ── Data lake — object versioning is governed (keep object history). ──
@@ -81,7 +97,7 @@ export function authorFractal() {
         ), // guardrail
       );
 
-      return {cluster, job, experiment, lake};
+      return {workspace, cluster, job, experiment, lake};
     },
 
     // ── OPERATIONS — application-level verbs only. What the APP decides: what it

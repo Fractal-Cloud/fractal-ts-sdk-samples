@@ -8,6 +8,7 @@ import {fatal} from './fatal';
 import {authorFractal} from './fractal';
 import {
   createFractalCloudClient,
+  GcpDatabricks,
   GcpDatabricksCluster,
   GcpDatabricksJob,
   GcpDatabricksMlflow,
@@ -38,6 +39,7 @@ async function main() {
       name: 'basic-big-data',
       environment,
       select: {
+        'analytics-workspace': GcpDatabricks({pricingTier: 'premium'}),
         'analytics-cluster': GcpDatabricksCluster({}),
         'etl-job': GcpDatabricksJob({}),
         'fraud-model': GcpDatabricksMlflow({}),
