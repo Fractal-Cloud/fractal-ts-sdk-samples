@@ -8,6 +8,7 @@ import {fatal} from './fatal';
 import {authorFractal} from './fractal';
 import {
   createFractalCloudClient,
+  AzureDatabricks,
   AzureDatabricksCluster,
   AzureDatabricksJob,
   AzureDatabricksMlflow,
@@ -38,6 +39,7 @@ async function main() {
       name: 'basic-big-data',
       environment,
       select: {
+        'analytics-workspace': AzureDatabricks({pricingTier: 'premium'}),
         'analytics-cluster': AzureDatabricksCluster({}),
         'etl-job': AzureDatabricksJob({}),
         'fraud-model': AzureDatabricksMlflow({}),
