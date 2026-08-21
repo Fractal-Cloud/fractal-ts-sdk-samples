@@ -8,7 +8,7 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 
 - Node.js 18+
 - A Fractal Cloud account with a service account
-- Every sample pins `"@fractal_cloud/sdk": "^2.4.5"`
+- Every sample pins `"@fractal_cloud/sdk": "^2.5.4"`
 
 ## Samples
 
