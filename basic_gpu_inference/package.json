@@ -1,7 +1,7 @@
 {
   "name": "basic-gpu-inference",
   "version": "0.0.1",
-  "description": "Fractal + GCP Live System sample \u2014 a GPU VM that serves a self-hosted LLM (vLLM + Qwen2.5-32B) as an OpenAI-compatible endpoint",
+  "description": "Fractal + GCP Live System sample — a GPU VM that serves a self-hosted LLM (vLLM + Qwen2.5-32B) as an OpenAI-compatible endpoint",
   "files": [
     "build/src"
   ],
@@ -23,6 +23,6 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.5.3"
+    "@fractal_cloud/sdk": "^2.5.4"
   }
 }

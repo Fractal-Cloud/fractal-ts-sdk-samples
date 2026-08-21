@@ -1,7 +1,7 @@
 {
   "name": "basic-onprem-openshift",
   "version": "0.0.1",
-  "description": "Fractal + OpenShift Live System sample \u2014 on-prem CaaS + IaaS (Workloads, Service, NetworkPolicy, PersistentVolume, VM)",
+  "description": "Fractal + OpenShift Live System sample — on-prem CaaS + IaaS (Workloads, Service, NetworkPolicy, PersistentVolume, VM)",
   "files": [
     "build/src"
   ],
@@ -21,6 +21,6 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.5.3"
+    "@fractal_cloud/sdk": "^2.5.4"
   }
 }

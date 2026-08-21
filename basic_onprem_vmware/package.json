@@ -1,7 +1,7 @@
 {
   "name": "basic-onprem-vmware",
   "version": "0.0.1",
-  "description": "Fractal + VMware Live System sample \u2014 on-prem IaaS (Port Group, VLAN, vSphere VMs)",
+  "description": "Fractal + VMware Live System sample — on-prem IaaS (Port Group, VLAN, vSphere VMs)",
   "files": [
     "build/src"
   ],
@@ -21,6 +21,6 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.5.3"
+    "@fractal_cloud/sdk": "^2.5.4"
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "basic-container-platform",
   "version": "0.0.1",
-  "description": "Fractal + Live System sample \u2014 NetworkAndCompute domain (VirtualNetwork + Subnet + SecurityGroup + ContainerPlatform + Workloads)",
+  "description": "Fractal + Live System sample — NetworkAndCompute domain (VirtualNetwork + Subnet + SecurityGroup + ContainerPlatform + Workloads)",
   "files": [
     "build/src"
   ],
@@ -16,7 +16,7 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.5.3"
+    "@fractal_cloud/sdk": "^2.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
