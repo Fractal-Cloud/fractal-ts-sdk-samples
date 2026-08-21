@@ -7,7 +7,7 @@ This sample is also the clearest illustration of the **guardrails vs operations*
 ## What it provisions
 
 ```
-ApiGateway (api-gateway)
+ApiGateway (acme-api-gateway)
 ```
 
 A single API Gateway component. The architect locks three security guardrails on it at design time: `httpsOnly`, `rateLimit`, and `cors`. The dev team appends routes via the `withRoute` operation.
@@ -38,7 +38,7 @@ only cloud-specific code; the blueprint in `fractal.ts` is identical across all.
 
 ## Selecting a provider
 
-Each per-cloud entrypoint maps the `api-gateway` component to a concrete offer in its inline `select` map:
+Each per-cloud entrypoint maps the `acme-api-gateway` component to a concrete offer in its inline `select` map:
 
 | Entrypoint | Offer selected | Notes |
 |-----------------|----------------|-------|

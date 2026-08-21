@@ -61,8 +61,14 @@ export function authorFractal() {
       //    These three guardrails are LOCKED: a consuming dev specializing this
       //    Fractal cannot weaken them. They are infra/security PARAMETERS of the
       //    gateway, not anything the application gets to decide. ──
+      // The component id is NOT cosmetic on every cloud: the Azure agent names
+      // the API Management service after it, and an APIM service name is a
+      // GLOBAL DNS label ({name}.azure-api.net). A generic id such as
+      // 'api-gateway' is already taken by another tenant, and Azure answers the
+      // create with 409 ServiceAlreadyExists forever — which is why this sample
+      // never deployed. Keep the id specific to your organization.
       const gateway = bp.add(
-        ApiGateway({id: 'api-gateway', displayName: 'API Gateway'})
+        ApiGateway({id: 'acme-api-gateway', displayName: 'API Gateway'})
           .withHttpsOnly(true) // guardrail: never serve plain HTTP
           .withRateLimit({requestsPerSecond: 1000}) // guardrail: global throttle
           .withCors({allowOrigins: ['https://acme.com']}), // guardrail: CORS allow-list

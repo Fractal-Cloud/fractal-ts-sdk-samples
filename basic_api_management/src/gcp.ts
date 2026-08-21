@@ -41,7 +41,7 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one offer per component. ──
       select: {
-        'api-gateway': GcpApiGateway({}),
+        'acme-api-gateway': GcpApiGateway({}),
       },
     });
   const bc = liveSystem.boundedContext;
