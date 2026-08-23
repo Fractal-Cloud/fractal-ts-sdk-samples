@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — basic_observability: Monitoring + Tracing + Logging, self-hosted
+# deploy.sh — basic_observability: Monitoring + Tracing + Logging, self-hosted,
+# on a managed cluster behind an API gateway
 #
-#   ./deploy.sh              build and deploy the default target (caas)
+#   ./deploy.sh              build and deploy the default target (azure)
 #
 # Configuration is read from ./.env — copy .sample.env to .env and fill it in.
 # Variables already exported in the shell win over .env, so CI can inject
@@ -17,8 +18,8 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 script_path="$script_dir/$(basename -- "${BASH_SOURCE[0]}")"
 cd "$script_dir"
 
-TARGETS=(caas)
-DEFAULT_TARGET=caas
+TARGETS=(azure)
+DEFAULT_TARGET=azure
 
 target="${1:-$DEFAULT_TARGET}"
 if [[ "$target" == "-h" || "$target" == "--help" ]]; then
