@@ -55,7 +55,10 @@ export function authorFractal() {
           id: 'app-platform',
           displayName: 'Application Platform',
         })
-          .withKubernetesVersion('1.29') // guardrail
+          // The Azure agent matches this against the region's orchestrator list by exact string
+          // equality, so it must be a full major.minor.patch that westeurope still offers —
+          // 1.35.7 is the region default. 1.29 was EOL and rejected.
+          .withKubernetesVersion('1.35.7') // guardrail
           .withNetworkPolicyProvider('calico'), // guardrail
       );
 
