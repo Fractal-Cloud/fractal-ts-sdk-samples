@@ -46,8 +46,14 @@ async function main() {
       'main-network': AzureVnet({}),
       'public-subnet': AzureSubnet({}),
       'web-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-iaas'}),
-      'api-server': AzureVm({vmSize: 'Standard_B1s'}),
-      'web-server': AzureVm({vmSize: 'Standard_B1s'}),
+      // Burstable, AMD, v2 generation. Standard_B1s is v1, on the
+      // standardBSFamily quota family Azure has deprecated: it refuses any
+      // increase with DeprecatedQuotaType, so that family is permanently
+      // capped at 10 vCPU. Bsv2 has no 1-vCPU size, so this is 2 vCPU / 1 GiB
+      // — the same memory B1s gave. Not the `p` (Arm) line, cheaper still but
+      // needing an arm64 image.
+      'api-server': AzureVm({vmSize: 'Standard_B2ats_v2'}),
+      'web-server': AzureVm({vmSize: 'Standard_B2ats_v2'}),
     },
   });
 
