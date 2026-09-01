@@ -58,9 +58,15 @@ export function authorFractal() {
       //    The logical databases themselves are declared by the application via
       //    the withDatabases operation (each becomes a RelationalDatabase
       //    component emitted by the selected DBMS offer). ──
+      // The component id is NOT cosmetic on Azure: the agent names the
+      // PostgreSQL flexible server after it, and that name is a GLOBAL DNS
+      // label ({name}.postgres.database.azure.com). The obvious id 'app-dbms'
+      // is already declared by the app_with_identity sample, so both samples
+      // requested the same global name in every sweep and whichever ran second
+      // could never get it. Keep this id distinct from every other sample's.
       const dbms = bp.add(
         RelationalDbms({
-          id: 'app-dbms',
+          id: 'storage-dbms',
           displayName: 'Application Database Engine',
         })
           .withHighAvailability('zone-redundant') // guardrail

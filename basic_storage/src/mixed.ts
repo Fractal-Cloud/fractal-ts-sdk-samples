@@ -42,7 +42,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: mix vendors per component. ──
       select: {
         uploads: AwsS3({region: 'us-east-1'}), // AWS object storage…
-        'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}), // …+ Azure DB
+        'storage-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}), // …+ Azure DB
       },
     });
 
