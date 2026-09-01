@@ -67,8 +67,14 @@ export function authorFractal() {
       // 'api-gateway' is already taken by another tenant, and Azure answers the
       // create with 409 ServiceAlreadyExists forever — which is why this sample
       // never deployed. Keep the id specific to your organization.
+      //
+      // The previous id here, 'acme-api-gateway', was blocked by OUR OWN APIM
+      // service: APIM deletion is a SOFT delete that holds the global name for
+      // 48h, and nothing in the teardown path purges it. So the sample blocked
+      // itself for two days after every run. Renaming sidesteps the currently
+      // held name; the recurrence is only fixed by purging on teardown.
       const gateway = bp.add(
-        ApiGateway({id: 'acme-api-gateway', displayName: 'API Gateway'})
+        ApiGateway({id: 'acme-apim-gateway', displayName: 'API Gateway'})
           .withHttpsOnly(true) // guardrail: never serve plain HTTP
           .withRateLimit({requestsPerSecond: 1000}) // guardrail: global throttle
           .withCors({allowOrigins: ['https://acme.com']}), // guardrail: CORS allow-list

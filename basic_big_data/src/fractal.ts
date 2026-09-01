@@ -91,10 +91,18 @@ export function authorFractal() {
       );
 
       // ── Data lake — object versioning is governed (keep object history). ──
+      // The id becomes the storage/bucket name verbatim on Azure, where a
+      // Datalake is an ADLS Gen2 STORAGE ACCOUNT and that name is GLOBAL across
+      // all of Azure. The obvious id 'lake' is already taken by another party
+      // (`az storage account check-name --name lake` answers AlreadyExists), so
+      // this sample could never create it. Must stay lowercase alphanumeric and
+      // <=24 chars: Azure storage accounts allow neither hyphens nor more than
+      // 24. Do not shorten this back.
       const lake = bp.add(
-        Datalake({id: 'lake', displayName: 'Data Lake'}).withVersioningEnabled(
-          true,
-        ), // guardrail
+        Datalake({
+          id: 'acmebigdatalake',
+          displayName: 'Data Lake',
+        }).withVersioningEnabled(true), // guardrail
       );
 
       return {workspace, cluster, job, experiment, lake};

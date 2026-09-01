@@ -41,7 +41,7 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one offer per component. ──
       select: {
-        'acme-api-gateway': AwsCloudFront({region: 'us-east-1'}),
+        'acme-apim-gateway': AwsCloudFront({region: 'us-east-1'}),
       },
     });
   const bc = liveSystem.boundedContext;

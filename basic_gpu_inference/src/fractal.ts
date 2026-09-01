@@ -109,9 +109,15 @@ export function authorFractal() {
 
       // ── Results bucket — where the box writes eval outputs and reads inputs.
       //    Abstract ObjectStorage; the offer (a GCS bucket) is chosen in gcp.ts. ──
+      // The id becomes the bucket name verbatim, and the GCS bucket namespace is
+      // GLOBAL. The obvious id 'results-bucket' already exists and belongs to
+      // another project (the unauthenticated GCS JSON API answers 401 for it and
+      // 404 for a name that is genuinely free), so this sample could never create
+      // it. Kept lowercase alphanumeric so the same id is also legal as an Azure
+      // storage account should the offer ever be swapped. Do not shorten it back.
       const resultsBucket = bp.add(
         ObjectStorage({
-          id: 'results-bucket',
+          id: 'acmegpuresults',
           displayName: 'Eval Results Bucket',
         }),
       );

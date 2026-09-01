@@ -41,7 +41,7 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one offer per component. ──
       select: {
-        'acme-api-gateway': AzureApiManagement({
+        'acme-apim-gateway': AzureApiManagement({
           publisherEmail: 'ops@acme.com',
           sku: 'Developer',
         }),

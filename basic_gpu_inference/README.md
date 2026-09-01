@@ -19,7 +19,7 @@ SecurityGroup   (inference-sg)
     └── ingress: TCP 22 (SSH) from 0.0.0.0/0
     └── ingress: TCP 8000 (vLLM) from 10.0.0.0/16  ← internal only, no public model port
     └── the VM is a member via a membership link
-ObjectStorage   (results-bucket → a GCS bucket)
+ObjectStorage   (acmegpuresults → a GCS bucket)
     └── vllm-host links with {access: 'read-write'}  → RESULTS_BUCKET_URI on the box
 Unmanaged       (openai → external OpenAI-compatible API)
     └── vllm-host links with {envPrefix: 'OPENAI'}   → OPENAI_API_KEY_REF on the box
@@ -56,7 +56,7 @@ secrets` calls in the blueprint. Two links on the VM express this in
 
 | Link | Setting | What the agent does |
 |------|---------|---------------------|
-| `vllm-host → results-bucket` | `{access: 'read-write'}` | Ensures the VM has an identity, grants **that** identity a bucket role scoped by `access` (least-privilege), and publishes `RESULTS_BUCKET_URI` to the box. |
+| `vllm-host → acmegpuresults` | `{access: 'read-write'}` | Ensures the VM has an identity, grants **that** identity a bucket role scoped by `access` (least-privilege), and publishes `RESULTS_BUCKET_URI` to the box. |
 | `vllm-host → openai` | `{envPrefix: 'OPENAI'}` | Injects the external service config plus `OPENAI_API_KEY_REF` — a secret-store **reference**, never the raw key. |
 
 The offers are selected in [`live_system.ts`](./src/live_system.ts): `GcsBucket`

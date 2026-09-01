@@ -43,7 +43,11 @@ async function main() {
         'analytics-cluster': AwsDatabricksCluster({}),
         'etl-job': AwsDatabricksJob({}),
         'fraud-model': AwsDatabricksMlflow({}),
-        lake: AwsS3Datalake({bucket: 'acme-lake'}),
+        // The S3 bucket namespace is GLOBAL. 'acme-lake' is owned by a third
+        // party (`aws s3api head-bucket --bucket acme-lake` answers 403, not
+        // 404), so this sample could never create it. Keep this in step with
+        // the component id in fractal.ts.
+        acmebigdatalake: AwsS3Datalake({bucket: 'acmebigdatalake'}),
       },
     });
 

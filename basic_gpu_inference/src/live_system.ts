@@ -111,7 +111,7 @@ export function buildLiveSystem() {
         // Results bucket → a regional GCS bucket. The VM's read-write link
         // (fractal.ts) makes the agent grant the box's OWN identity a scoped
         // bucket role and publish RESULTS_BUCKET_URI to it — no shared SA.
-        'results-bucket': GcsBucket({region: REGION}),
+        acmegpuresults: GcsBucket({region: REGION}),
         // External AI service → the vendor-neutral AI.SaaS.Unmanaged offer. Its
         // `secret` REFERENCES the `openai-api-key` environment secret by short
         // name; the raw key never travels through the blueprint or live system.
