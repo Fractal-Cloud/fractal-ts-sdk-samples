@@ -44,7 +44,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: one Azure offer per component. ──
       select: {
         uploads: AzureBlob({sku: 'Standard_LRS'}),
-        'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}),
+        'storage-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}),
       },
     });
 

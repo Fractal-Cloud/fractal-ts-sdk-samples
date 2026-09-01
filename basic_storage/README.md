@@ -7,7 +7,7 @@ Demonstrates a cloud-agnostic storage workload using the Fractal Cloud TypeScrip
 ```
 ObjectStorage (uploads) — encrypted, versioned, private, 90-day retention, standard class
 
-RelationalDbms (app-dbms) — PostgreSQL 16, zone-redundant HA, 30-day backup, 100 GB
+RelationalDbms (storage-dbms) — PostgreSQL 16, zone-redundant HA, 30-day backup, 100 GB
 +-- RelationalDatabase (orders) — charset: UTF8, collation: en_US.utf8
 +-- RelationalDatabase (audit)  — charset: UTF8, collation: en_US.utf8
 ```
@@ -49,7 +49,7 @@ dispatch. The inline `select` map is the only target-specific code.
 
 Pick a target by running its entrypoint: `azure.js` · `gcp.js` · `mixed.js`
 
-| Entrypoint | `uploads` offer | `app-dbms` offer |
+| Entrypoint | `uploads` offer | `storage-dbms` offer |
 |-------|-----------------|------------------|
 | `azure.ts` | `AwsS3` (eu-west-1) | `AzurePostgresDbms` (rg-storage) |
 | `gcp.ts` | `GcsBucket` (EU) | `GcpPostgresDbms` (db-custom-2-7680) |

@@ -40,7 +40,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: one GCP offer per component. ──
       select: {
         uploads: GcsBucket({region: 'EU'}),
-        'app-dbms': GcpPostgresDbms({tier: 'db-custom-2-7680'}),
+        'storage-dbms': GcpPostgresDbms({tier: 'db-custom-2-7680'}),
       },
     });
 
