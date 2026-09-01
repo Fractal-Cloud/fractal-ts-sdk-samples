@@ -200,7 +200,7 @@ async function main() {
   const liveSystem = fractal.specialize().toLiveSystem({
     name: 'acme-uploads',
     environment: management.operational('prod').ref(),
-    select: {uploads: AzureBlob({sku: 'Standard_LRS'})},
+    select: {acmeenvuploads: AzureBlob({sku: 'Standard_LRS'})},
   });
 
   const bc = liveSystem.boundedContext;

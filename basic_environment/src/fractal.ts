@@ -23,7 +23,11 @@ export function authorFractal() {
     boundedContextId,
     blueprint: bp => {
       const uploads = bp.add(
-        ObjectStorage({id: 'uploads', displayName: 'Uploads Bucket'})
+        // The id becomes the Azure storage account name verbatim (the agent falls back to
+        // component.getId() when no name parameter is set), and that name is global and must be
+        // lowercase alphanumeric — no hyphens. Plain 'uploads' is what basic_storage asks for,
+        // so the two samples collided in every sweep. Do not shorten this back.
+        ObjectStorage({id: 'acmeenvuploads', displayName: 'Uploads Bucket'})
           .withEncryption('at-rest')
           .withPublicAccess(false),
       );
