@@ -46,7 +46,12 @@ export function authorFractal() {
     blueprint: bp => {
       // ── Uploads bucket — security posture + storage class are governed. ──
       const uploads = bp.add(
-        ObjectStorage({id: 'uploads', displayName: 'Uploads Bucket'})
+        // The id becomes the bucket/account name verbatim on every cloud, and all three
+        // namespaces are global. Plain 'uploads' is already owned by another party on S3
+        // (HeadBucket answers 403, not 404), so this sample could never create it there.
+        // Must stay lowercase alphanumeric and <=24 chars: Azure storage accounts allow
+        // neither hyphens nor more than 24. Do not shorten this back.
+        ObjectStorage({id: 'acmestorageuploads', displayName: 'Uploads Bucket'})
           .withEncryption('at-rest') // guardrail: always encrypted
           .withPublicAccess(false) // guardrail: never public
           .withVersioningEnabled(true) // guardrail: keep object history
