@@ -43,7 +43,7 @@ async function main() {
         'analytics-cluster': AzureDatabricksCluster({}),
         'etl-job': AzureDatabricksJob({}),
         'fraud-model': AzureDatabricksMlflow({}),
-        lake: AzureDatalake({resourceGroup: 'rg-bd'}),
+        acmebigdatalake: AzureDatalake({resourceGroup: 'rg-bd'}),
       },
     });
 

@@ -43,7 +43,7 @@ async function main() {
         'analytics-cluster': GcpDatabricksCluster({}),
         'etl-job': GcpDatabricksJob({}),
         'fraud-model': GcpDatabricksMlflow({}),
-        lake: GcpDatalake({bucketName: 'acme-lake'}),
+        acmebigdatalake: GcpDatalake({bucketName: 'acmebigdatalake'}),
       },
     });
 

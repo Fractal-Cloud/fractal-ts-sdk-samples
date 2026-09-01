@@ -10,7 +10,7 @@ DistributedDataProcessing (analytics-workspace)
 ComputeCluster (analytics-cluster)  — Databricks cluster (max 10 workers, 30-min auto-termination)
 DataProcessingJob (etl-job)         — Scheduled ETL job (depends on cluster + workspace)
 MlExperiment (fraud-model)          — MLflow experiment tracker (depends on workspace)
-Datalake (lake)                     — Versioned object storage (versioning enabled)
+Datalake (acmebigdatalake)                     — Versioned object storage (versioning enabled)
 ```
 
 A cluster, a job and an experiment are all tenants of a Databricks workspace, so
