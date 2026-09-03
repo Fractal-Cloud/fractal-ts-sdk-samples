@@ -46,11 +46,9 @@ async function main() {
       'public-subnet': AwsSubnet({}),
       'web-sg': AwsSecurityGroup({}),
       'api-server': Ec2Instance({
-        amiId: 'ami-0abcdef1234567890',
         instanceType: 't3.micro',
       }),
       'web-server': Ec2Instance({
-        amiId: 'ami-0abcdef1234567890',
         instanceType: 't3.micro',
       }),
     },
