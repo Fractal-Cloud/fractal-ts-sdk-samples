@@ -43,7 +43,7 @@ async function main() {
     environment,
     // ── The ONLY cloud-specific lines: one Hetzner offer per component. ──
     select: {
-      'main-network': HetznerNetwork({}),
+      'acme-iaas-network': HetznerNetwork({}),
       'public-subnet': HetznerSubnet({}),
       'web-sg': HetznerFirewall({}),
       'api-server': HetznerServer({serverType: 'cx22'}),

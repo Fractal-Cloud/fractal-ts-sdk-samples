@@ -52,7 +52,15 @@ const boundedContextId = {
  * SSH stays open for administration; tighten `SSH_SOURCE_CIDR` to your admin
  * range in a real deployment.
  */
-const VPC_CIDR = '10.0.0.0/16';
+// VPC_CIDR is LOCAL to this sample (no other sample imports it) and must stay
+// unique to it and clear of whatever networking the target environment already
+// has. Low 10.0.x ranges are commonly already in use, and the old hard-coded
+// 10.0.0.0/16 with a 10.0.1.0/24 subnet collided with them. Each sample owns
+// one /16 from 10.180.0.0/16 up and keeps its subnets inside it.
+//
+// The component id also becomes the VPC name on the AWS agent, so keep
+// 'inference-net' specific to this sample rather than something generic.
+const VPC_CIDR = '10.185.0.0/16';
 const SSH_SOURCE_CIDR = '0.0.0.0/0';
 const VLLM_PORT = 8000;
 
@@ -80,7 +88,7 @@ export function authorFractal() {
       // ── Subnet — carved from the network CIDR; depends on it. ──
       const subnet = bp.add(
         Subnet({id: 'inference-subnet', displayName: 'Inference Subnet'})
-          .withCidrBlock('10.0.1.0/24')
+          .withCidrBlock('10.185.1.0/24')
           .dependsOn(network),
       );
 

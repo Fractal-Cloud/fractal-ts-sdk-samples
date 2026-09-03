@@ -77,7 +77,7 @@ async function main() {
     environment,
     // ── The ONLY cloud-specific lines: one offer per component. ──
     select: {
-      'platform-network': AzureVnet({}),
+      'acme-observability-network': AzureVnet({}),
       'platform-subnet': AzureSubnet({}),
       'platform-cluster': Aks({}),
       // Each capability gets its own namespace. The gateway's namespace is the

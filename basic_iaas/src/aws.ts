@@ -42,7 +42,7 @@ async function main() {
     environment,
     // ── The ONLY cloud-specific lines: one AWS offer per component. ──
     select: {
-      'main-network': AwsVpc({}),
+      'acme-iaas-network': AwsVpc({}),
       'public-subnet': AwsSubnet({}),
       'web-sg': AwsSecurityGroup({}),
       'api-server': Ec2Instance({

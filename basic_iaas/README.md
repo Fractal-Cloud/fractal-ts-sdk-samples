@@ -5,8 +5,8 @@ Demonstrates a cloud-agnostic IaaS workload using the Fractal Cloud TypeScript S
 ## What it provisions
 
 ```
-VirtualNetwork  (main-network, 10.0.0.0/16)
-└── Subnet      (public-subnet, 10.0.1.0/24)
+VirtualNetwork  (acme-iaas-network, 10.182.0.0/16)
+└── Subnet      (public-subnet, 10.182.1.0/24)
     ├── web-server  — frontend VM, links to api-server on TCP 8080
     └── api-server  — backend VM
 SecurityGroup   (web-sg)

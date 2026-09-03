@@ -42,7 +42,7 @@ async function main() {
     environment,
     // ── The ONLY cloud-specific lines: one OCI offer per component. ──
     select: {
-      'main-network': OciVcn({}),
+      'acme-iaas-network': OciVcn({}),
       'public-subnet': OciSubnet({}),
       'web-sg': OciSecurityList({
         compartmentId: process.env['OCI_COMPARTMENT_ID'] ?? '',

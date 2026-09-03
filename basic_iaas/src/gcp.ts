@@ -42,7 +42,7 @@ async function main() {
     environment,
     // ── The ONLY cloud-specific lines: one GCP offer per component. ──
     select: {
-      'main-network': GcpVpc({}),
+      'acme-iaas-network': GcpVpc({}),
       'public-subnet': GcpSubnet({}),
       'web-sg': GcpFirewall({}),
       'api-server': GcpVm({machineType: 'e2-micro'}),

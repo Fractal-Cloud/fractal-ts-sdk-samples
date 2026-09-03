@@ -55,16 +55,29 @@ export function authorFractal() {
       'web + api workload pair.',
     boundedContextId,
     blueprint: bp => {
-      // ── Network topology — CIDR blocks are governed. ──
+      // ── Network — the VPC's address space is a governed guardrail. ──
+      // Two things are locked down here, for two different reasons.
+      //
+      // The id is NOT cosmetic: the AWS agent names the VPC after the component
+      // id. Ownership is resolved from resource tags, so a shared id does not
+      // merge two samples' VPCs — but a generic id such as 'main-network', which
+      // four samples used to share, is still the generic-id trap. Keep it
+      // specific to this sample.
+      //
+      // The address space must stay clear of whatever networking the target
+      // environment already has. Low 10.0.x ranges are commonly already in use,
+      // and the old hard-coded 10.0.0.0/16 with a 10.0.1.0/24 subnet collided
+      // with them. Each sample owns one /16 from 10.180.0.0/16 up and keeps its
+      // subnets inside it. Do not tidy either back to a generic value.
       const network = bp.add(
         VirtualNetwork({
-          id: 'main-network',
+          id: 'acme-container-platform-network',
           displayName: 'Main Network',
-        }).withCidrBlock('10.0.0.0/16'), // guardrail
+        }).withCidrBlock('10.181.0.0/16'), // guardrail
       );
       const subnet = bp.add(
         Subnet({id: 'private-subnet', displayName: 'Private Subnet'})
-          .withCidrBlock('10.0.1.0/24') // guardrail
+          .withCidrBlock('10.181.1.0/24') // guardrail
           .dependsOn(network),
       );
 
@@ -75,7 +88,7 @@ export function authorFractal() {
           .dependsOn(network)
           .withIngressRules([
             {fromPort: 80, toPort: 80, sourceCidr: '0.0.0.0/0'}, // guardrail
-            {fromPort: 8080, toPort: 8080, sourceCidr: '10.0.0.0/16'}, // guardrail
+            {fromPort: 8080, toPort: 8080, sourceCidr: '10.181.0.0/16'}, // guardrail
           ]),
       );
 

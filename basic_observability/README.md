@@ -7,14 +7,14 @@ The observability capabilities themselves are **self-hosted (CaaS)** — Prometh
 ## What it provisions
 
 ```
-VirtualNetwork    (platform-network)  — 10.0.0.0/16
-Subnet            (platform-subnet)   — 10.0.1.0/24
-ContainerPlatform (platform-cluster)  — one autoscaling system pool (2–4 nodes)
-ApiGateway        (platform-gateway)  — in-cluster gateway, own namespace
-Monitoring        (monitoring)        — Prometheus + Grafana + Alertmanager
-                                        (retention: 30 days, scrape interval: 15 s)
-Tracing           (tracing)           — Jaeger  (retention: 7 days, sampling rate: 10 %)
-Logging           (logging)           — Elastic + Kibana + fluentd (retention: 30 days)
+VirtualNetwork    (acme-observability-network) — 10.183.0.0/16
+Subnet            (platform-subnet)           — 10.183.1.0/24
+ContainerPlatform (platform-cluster)          — one autoscaling system pool (2–4 nodes)
+ApiGateway        (platform-gateway)          — in-cluster gateway, own namespace
+Monitoring        (monitoring)                — Prometheus + Grafana + Alertmanager
+                                                (retention: 30 days, scrape interval: 15 s)
+Tracing           (tracing)                   — Jaeger  (retention: 7 days, sampling rate: 10 %)
+Logging           (logging)                   — Elastic + Kibana + fluentd (retention: 30 days)
 ```
 
 ## Why an API gateway is part of the sample
@@ -46,7 +46,7 @@ src/
 
 | Blueprint component | ID | Offer selected in `azure.ts` |
 |---------------------|----|-------------------------------|
-| `VirtualNetwork` | `platform-network` | `AzureVnet({})` |
+| `VirtualNetwork` | `acme-observability-network` | `AzureVnet({})` |
 | `Subnet` | `platform-subnet` | `AzureSubnet({})` |
 | `ContainerPlatform` | `platform-cluster` | `Aks({})` |
 | `ApiGateway` | `platform-gateway` | `Ambassador({namespace: 'ambassador', …})` |

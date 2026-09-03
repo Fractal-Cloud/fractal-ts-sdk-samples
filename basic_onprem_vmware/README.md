@@ -13,8 +13,8 @@ Deploys a basic on-premises IaaS workload on **VMware vSphere**: a distributed p
 
 | Blueprint component | VMware offer | What it provisions |
 |---------------------|-------------|--------------------|
-| `VirtualNetwork` (`main-network`) | `VspherePortGroup` | Distributed port group on vDS `dvs0` |
-| `Subnet` (`server-vlan`) | `VsphereVlan` | VLAN segment 100, CIDR 10.0.1.0/24 |
+| `VirtualNetwork` (`acme-onprem-vmware-network`) | `VspherePortGroup` | Distributed port group on vDS `dvs0` |
+| `Subnet` (`server-vlan`) | `VsphereVlan` | VLAN segment 100, CIDR 10.184.1.0/24 |
 | `VirtualMachine` (`api-server`) | `VsphereVm` | Backend VM from the `ubuntu-24.04` template |
 | `VirtualMachine` (`web-server`) | `VsphereVm` | Frontend VM from the `ubuntu-24.04` template; linked to api-server on 8080/tcp |
 

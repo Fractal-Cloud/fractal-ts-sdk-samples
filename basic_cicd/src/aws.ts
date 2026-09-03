@@ -44,7 +44,7 @@ async function main() {
     // Vendor-only knobs (amiId, instanceType) are offer config; both VMs
     // share the same AMI but differ in instance size.
     select: {
-      'main-network': AwsVpc({}),
+      'acme-cicd-network': AwsVpc({}),
       'public-subnet': AwsSubnet({}),
       'web-sg': AwsSecurityGroup({}),
       'api-server': Ec2Instance({
