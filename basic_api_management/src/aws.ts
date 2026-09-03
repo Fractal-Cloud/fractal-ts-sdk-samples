@@ -41,7 +41,10 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one offer per component. ──
       select: {
-        'acme-apim-gateway': AwsCloudFront({region: 'us-east-1'}),
+        // No region pin. CloudFront is global and its control-plane calls are exempt from the
+        // region guardrail, but the origin bucket it creates is plain S3 and is not — pinning
+        // us-east-1 put that bucket outside the permitted region and the create was denied.
+        'acme-apim-gateway': AwsCloudFront({}),
       },
     });
   const bc = liveSystem.boundedContext;
