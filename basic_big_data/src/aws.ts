@@ -39,7 +39,16 @@ async function main() {
       name: 'basic-big-data',
       environment,
       select: {
-        'analytics-workspace': AwsDatabricks({pricingTier: 'premium'}),
+        // credentialsId and storageConfigurationId name a credential configuration and a
+        // storage configuration created in the Databricks ACCOUNT CONSOLE. The agent cannot
+        // derive them and this sample must not hardcode them, so they come from the
+        // environment — set both before deploying, or the workspace fails its first
+        // reconcile with REQUIRED_PARAMETER_MISSING.
+        'analytics-workspace': AwsDatabricks({
+          pricingTier: 'premium',
+          credentialsId: process.env['DATABRICKS_CREDENTIALS_ID'] ?? '',
+          storageConfigurationId: process.env['DATABRICKS_STORAGE_CONFIGURATION_ID'] ?? '',
+        }),
         'analytics-cluster': AwsDatabricksCluster({}),
         'etl-job': AwsDatabricksJob({}),
         'fraud-model': AwsDatabricksMlflow({}),
