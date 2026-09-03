@@ -52,18 +52,36 @@ export function authorFractal() {
     boundedContextId,
     blueprint: bp => {
       // ── Virtual network — address space is a governed guardrail. ──
+      // Two separate things are locked down here, for two different reasons.
+      //
+      // The id is NOT cosmetic: the AWS agent names the VPC after it
+      // (VirtualPrivateCloud.java builds VpcConfig.fromMap(params, region,
+      // component.getId())). Ownership is resolved from resource tags, so a
+      // shared id does not merge two samples' VPCs — but a generic id such as
+      // 'main-network', which four samples used to share, is still the
+      // generic-id trap. Keep it specific to this sample.
+      //
+      // The address space must stay clear of the MANAGEMENT PLANE. The workload
+      // account runs a hub-and-spoke topology, and the samples' old hard-coded
+      // 10.0.0.0/16 swallowed the hub (10.0.0.0/21) while their old 10.0.1.0/24
+      // was exactly hub-vpc-public-az2-subnet — hence "The CIDR '10.0.1.0/24'
+      // conflicts with another subnet". Reserved, do not overlap: 10.0.0.0/21
+      // (hub-vpc), 10.0.16.0/20 (evergreen-vpc), 100.64.0.0/20 and
+      // 100.64.16.0/20 (pod CIDRs), 172.31.0.0/16 (default VPC). No sample may
+      // use 10.0.x at all. Each sample owns one /16 from 10.180.0.0/16 up and
+      // keeps its subnets inside it. Do not tidy either back to a generic value.
       const network = bp.add(
         VirtualNetwork({
-          id: 'main-network',
+          id: 'acme-iaas-network',
           displayName: 'Main Network',
-        }).withCidrBlock('10.0.0.0/16'), // guardrail: the network's address space is fixed by the architect
+        }).withCidrBlock('10.182.0.0/16'), // guardrail: the network's address space is fixed by the architect
       );
 
       // ── Public subnet — carved from the network's CIDR; depends on it
       //    (cannot exist before the network). Its own CIDR is governed. ──
       const subnet = bp.add(
         Subnet({id: 'public-subnet', displayName: 'Public Subnet'})
-          .withCidrBlock('10.0.1.0/24') // guardrail: subnet range, fixed by the architect
+          .withCidrBlock('10.182.1.0/24') // guardrail: subnet range, fixed by the architect
           .dependsOn(network), // dependency: subnet needs the network first
       );
 

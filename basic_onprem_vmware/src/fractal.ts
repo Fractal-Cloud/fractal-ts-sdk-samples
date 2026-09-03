@@ -53,18 +53,33 @@ export function authorFractal() {
     boundedContextId,
     blueprint: bp => {
       // ── Virtual network — address space is a governed guardrail. ──
+      // This sample deploys to vSphere, but it shares the blueprint shape with
+      // the cloud samples and follows the same two rules.
+      //
+      // The id is NOT cosmetic: on the cloud agents it becomes the network's
+      // name (the AWS agent names the VPC after component.getId()). A generic
+      // id such as 'main-network', which four samples used to share, is the
+      // generic-id trap. Keep it specific to this sample.
+      //
+      // The address space must stay clear of the MANAGEMENT PLANE: the workload
+      // account runs a hub-and-spoke topology, and the samples' old hard-coded
+      // 10.0.0.0/16 swallowed the hub (10.0.0.0/21) while their old 10.0.1.0/24
+      // was exactly hub-vpc-public-az2-subnet. Reserved, do not overlap:
+      // 10.0.0.0/21, 10.0.16.0/20, 100.64.0.0/20, 100.64.16.0/20,
+      // 172.31.0.0/16 — no sample may use 10.0.x at all. Each sample owns one
+      // /16 from 10.180.0.0/16 up. Do not tidy either back to a generic value.
       const network = bp.add(
         VirtualNetwork({
-          id: 'main-network',
+          id: 'acme-onprem-vmware-network',
           displayName: 'Main Network',
-        }).withCidrBlock('10.0.0.0/16'), // guardrail: the network's address space is fixed by the architect
+        }).withCidrBlock('10.184.0.0/16'), // guardrail: the network's address space is fixed by the architect
       );
 
       // ── Server subnet — carved from the network's CIDR; depends on it
       //    (cannot exist before the network). Its own CIDR is governed. ──
       const subnet = bp.add(
         Subnet({id: 'server-vlan', displayName: 'Server VLAN'})
-          .withCidrBlock('10.0.1.0/24') // guardrail: subnet range, fixed by the architect
+          .withCidrBlock('10.184.1.0/24') // guardrail: subnet range, fixed by the architect
           .dependsOn(network), // dependency: subnet needs the network first
       );
 

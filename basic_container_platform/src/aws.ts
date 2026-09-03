@@ -44,7 +44,7 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one AWS offer per component. ──
       select: {
-        'main-network': AwsVpc({}),
+        'acme-container-platform-network': AwsVpc({}),
         'private-subnet': AwsSubnet({}),
         'app-sg': AwsSecurityGroup({}),
         'app-cluster': Eks({}),

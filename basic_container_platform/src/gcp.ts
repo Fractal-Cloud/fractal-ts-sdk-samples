@@ -44,7 +44,7 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one GCP offer per component. ──
       select: {
-        'main-network': GcpVpc({}),
+        'acme-container-platform-network': GcpVpc({}),
         'private-subnet': GcpSubnet({}),
         'app-sg': GcpFirewall({}),
         'app-cluster': Gke({}),

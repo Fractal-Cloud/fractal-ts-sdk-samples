@@ -11,13 +11,13 @@ flat-cost LLM endpoint on your own hardware instead of a per-token metered API.
 ## What it provisions
 
 ```
-VirtualNetwork  (inference-net, 10.0.0.0/16)
-└── Subnet      (inference-subnet, 10.0.1.0/24)
+VirtualNetwork  (inference-net, 10.185.0.0/16)
+└── Subnet      (inference-subnet, 10.185.1.0/24)
     └── vllm-host — GPU VM (a2-highgpu-1g = 1× A100 40 GB)
                     userData installs NVIDIA driver + toolkit, runs vLLM :8000
 SecurityGroup   (inference-sg)
     └── ingress: TCP 22 (SSH) from 0.0.0.0/0
-    └── ingress: TCP 8000 (vLLM) from 10.0.0.0/16  ← internal only, no public model port
+    └── ingress: TCP 8000 (vLLM) from 10.185.0.0/16  ← internal only, no public model port
     └── the VM is a member via a membership link
 ObjectStorage   (acmegpuresults → a GCS bucket)
     └── vllm-host links with {access: 'read-write'}  → RESULTS_BUCKET_URI on the box

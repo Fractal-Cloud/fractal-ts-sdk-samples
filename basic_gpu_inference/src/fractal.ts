@@ -52,7 +52,21 @@ const boundedContextId = {
  * SSH stays open for administration; tighten `SSH_SOURCE_CIDR` to your admin
  * range in a real deployment.
  */
-const VPC_CIDR = '10.0.0.0/16';
+// VPC_CIDR is LOCAL to this sample (no other sample imports it) and must stay
+// unique to it AND clear of the MANAGEMENT PLANE. The workload account runs a
+// hub-and-spoke topology, and the samples' old hard-coded 10.0.0.0/16 swallowed
+// the hub (10.0.0.0/21) while their old 10.0.1.0/24 was exactly
+// hub-vpc-public-az2-subnet — hence "The CIDR '10.0.1.0/24' conflicts with
+// another subnet". Reserved, do not overlap: 10.0.0.0/21 (hub-vpc),
+// 10.0.16.0/20 (evergreen-vpc), 100.64.0.0/20 and 100.64.16.0/20 (pod CIDRs),
+// 172.31.0.0/16 (default VPC). No sample may use 10.0.x at all; each owns one
+// /16 from 10.180.0.0/16 up and keeps its subnets inside it.
+//
+// Separately, the component id 'inference-net' becomes the VPC name on the AWS
+// agent — VirtualPrivateCloud.java builds VpcConfig.fromMap(params, region,
+// component.getId()) — so keep it specific to this sample rather than something
+// generic. Do not tidy either back to a generic value.
+const VPC_CIDR = '10.185.0.0/16';
 const SSH_SOURCE_CIDR = '0.0.0.0/0';
 const VLLM_PORT = 8000;
 
@@ -80,7 +94,7 @@ export function authorFractal() {
       // ── Subnet — carved from the network CIDR; depends on it. ──
       const subnet = bp.add(
         Subnet({id: 'inference-subnet', displayName: 'Inference Subnet'})
-          .withCidrBlock('10.0.1.0/24')
+          .withCidrBlock('10.185.1.0/24')
           .dependsOn(network),
       );
 

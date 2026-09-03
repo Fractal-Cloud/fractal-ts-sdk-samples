@@ -43,7 +43,7 @@ async function main() {
     environment,
     // ── The ONLY cloud-specific lines: one Azure offer per component. ──
     select: {
-      'main-network': AzureVnet({}),
+      'acme-iaas-network': AzureVnet({}),
       'public-subnet': AzureSubnet({}),
       'web-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-iaas'}),
       // Burstable, AMD, v2 generation. Standard_B1s is v1, on the

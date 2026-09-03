@@ -36,7 +36,7 @@ async function main() {
     // config — the dvSwitch the port group binds to, the VLAN id, the VM
     // template. These vSphere knobs are offer config, never blueprint params.
     select: {
-      'main-network': VspherePortGroup({dvSwitchName: 'dvs0'}),
+      'acme-onprem-vmware-network': VspherePortGroup({dvSwitchName: 'dvs0'}),
       'server-vlan': VsphereVlan({vlanId: 100}),
       'api-server': VsphereVm({template: 'ubuntu-24.04'}),
       'web-server': VsphereVm({template: 'ubuntu-24.04'}),

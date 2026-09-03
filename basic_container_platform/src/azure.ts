@@ -44,7 +44,7 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one Azure offer per component. ──
       select: {
-        'main-network': AzureVnet({}),
+        'acme-container-platform-network': AzureVnet({}),
         'private-subnet': AzureSubnet({}),
         'app-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-cp'}),
         'app-cluster': Aks({}),

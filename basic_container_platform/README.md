@@ -5,11 +5,11 @@ Demonstrates a cloud-agnostic two-tier container workload using the Fractal Clou
 ## What it provisions
 
 ```
-VirtualNetwork (main-network, 10.0.0.0/16)
-└── Subnet (private-subnet, 10.0.1.0/24)
+VirtualNetwork (acme-container-platform-network, 10.181.0.0/16)
+└── Subnet (private-subnet, 10.181.1.0/24)
 SecurityGroup (app-sg)
-    ├── ingress: TCP 80   from 0.0.0.0/0   (public HTTP)
-    └── ingress: TCP 8080 from 10.0.0.0/16 (internal only)
+    ├── ingress: TCP 80   from 0.0.0.0/0     (public HTTP)
+    └── ingress: TCP 8080 from 10.181.0.0/16 (internal only)
 ContainerPlatform (app-cluster)   — node pool "system", autoscaling 1–3
     ├── web-workload  (deps: cluster + subnet)  — member of app-sg, links to api on TCP 8080
     └── api-workload  (deps: cluster + subnet)  — member of app-sg

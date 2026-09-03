@@ -17,8 +17,8 @@ A basic IaaS network scaffold on AWS, selected via per-component offer mapping i
 
 | Blueprint component | Selected AWS offer | Governed guardrails |
 |---|---|---|
-| `VirtualNetwork` (`main-network`) | `AwsVpc` | CIDR `10.0.0.0/16` |
-| `Subnet` (`public-subnet`) | `AwsSubnet` | CIDR `10.0.1.0/24`; depends on VPC |
+| `VirtualNetwork` (`acme-cicd-network`) | `AwsVpc` | CIDR `10.180.0.0/16` |
+| `Subnet` (`public-subnet`) | `AwsSubnet` | CIDR `10.180.1.0/24`; depends on VPC |
 | `SecurityGroup` (`web-sg`) | `AwsSecurityGroup` | Ingress: SSH (22) + HTTP (80) from `0.0.0.0/0` |
 | `VirtualMachine` (`api-server`) | `Ec2Instance` | AMI `ami-096a4fdbcf530d8e0`, type `t3.small`; depends on subnet |
 | `VirtualMachine` (`web-server`) | `Ec2Instance` | AMI `ami-096a4fdbcf530d8e0`, type `t3.micro`; depends on subnet |
@@ -31,7 +31,7 @@ The vendor is chosen **at Live System build time**, not at blueprint authoring t
 
 ```ts
 const select = {
-  'main-network': AwsVpc({}),
+  'acme-cicd-network': AwsVpc({}),
   'public-subnet': AwsSubnet({}),
   'web-sg': AwsSecurityGroup({}),
   'api-server': Ec2Instance({ amiId: '...', instanceType: 't3.small' }),
