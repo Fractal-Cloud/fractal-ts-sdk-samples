@@ -68,22 +68,43 @@ key never travels through the blueprint or the live system.
 
 The live system references an environment secret named **`openai-api-key`**; it
 must exist in the target environment **before** you deploy. This sample does not
-author the environment (it references one that is defined and deployed
-separately), so define the secret there once, reading the value from
-`OPENAI_API_KEY` at deploy time — for example:
+author the environment — it references one that is defined and deployed
+separately — so the secret is defined *there*, not here. Two ways to do it.
+
+**In code**, on the operational environment, reading the value from
+`OPENAI_API_KEY` at deploy time. Note that `withSecret` returns a **new** node
+rather than mutating in place, so the result has to be reassigned:
 
 ```ts
-import {operationalEnvironment} from '@fractal_cloud/sdk/model';
+import {OperationalEnvironment} from '@fractal_cloud/sdk/model';
 
-operationalEnvironment('dev').withSecret({
-  shortName: 'openai-api-key',
+let env = OperationalEnvironment({shortName: 'dev'});
+
+env = env.withSecret({
+  shortName: 'openai-api-key',            // the name `secretRef` resolves
   displayName: 'OpenAI API key',
-  value: process.env['OPENAI_API_KEY']!, // read once, at deploy time — never hardcoded
+  value: process.env['OPENAI_API_KEY']!,  // read once, at deploy time — never hardcoded
 });
 ```
 
-Never hardcode the key. If `OPENAI_API_KEY` is unset when the environment is
-deployed, the secret is empty and the box's key lookup at boot returns nothing.
+Then deploy the environment as usual (`cloud.environments.deploy(...)`), which
+pushes the secret to the environment's secret store.
+
+The [`basic_environment`](../basic_environment) sample is the working reference
+for this: it authors a management + operational environment and attaches a
+secret the same way, guarding on the environment variable being present so an
+absent value is never deployed as an empty secret.
+
+**Or through the UI**: define an environment secret with the short name
+`openai-api-key` on the environment this live system targets, and paste the key
+as its value. Nothing in this sample changes.
+
+Either way, never hardcode the key — and note that `secretRef('openai-api-key')`
+resolves by **short name**, so the name has to match exactly. If the secret is
+missing, the `openai` component fails with
+`Referenced environment secret 'openai-api-key' was not found in the environment
+secret store`. If `OPENAI_API_KEY` is unset when the environment is deployed, the
+secret is empty and the box's key lookup at boot returns nothing.
 
 ### Ordering: the VM waits for its linked targets
 
