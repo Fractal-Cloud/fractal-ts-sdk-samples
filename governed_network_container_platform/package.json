@@ -1,0 +1,26 @@
+{
+  "name": "governed-network-container-platform",
+  "version": "0.0.1",
+  "description": "Fractal + Live System sample — a ContainerPlatform and an in-cluster Workload placed in the ENVIRONMENT's governed network (molecule mode)",
+  "files": [
+    "build/src"
+  ],
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "lint": "gts lint",
+    "clean": "gts clean",
+    "compile": "tsc",
+    "fix": "gts fix",
+    "prepare": "npm run compile",
+    "pretest": "npm run compile",
+    "posttest": "npm run lint"
+  },
+  "dependencies": {
+    "@fractal_cloud/sdk": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "gts": "^7.0.0",
+    "typescript": "^5.6.3"
+  }
+}

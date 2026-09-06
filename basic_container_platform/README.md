@@ -2,6 +2,34 @@
 
 Demonstrates a cloud-agnostic three-tier container workload using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS (ECS), Azure (Container Apps), or GCP (Cloud Run)** for the web and api tiers, plus a third tier that runs *inside* the managed cluster the sample creates, on the vendor-neutral Kubernetes offer. Pick the target provider by running its entrypoint. The vendor is named only when offers are selected.
 
+## Molecule or atom?
+
+This sample is **atom mode**: the blueprint brings its own `VirtualNetwork`,
+`Subnet` and `SecurityGroup` — home-brewed rather than provided by the
+environment. Its pair,
+[`governed_network_container_platform`](../governed_network_container_platform),
+is **molecule mode**: it declares no network at all, and the environment's own
+governed network (the AWS Cloud Adoption Framework / Well-Architected shape)
+provides one. Both are supported, and both keep working.
+
+The distinction is a **division of responsibility**, not a difference in
+capability. Both modes can run a private cluster; neither is second-class.
+
+**Pick atom** — this sample — when you bring your own network: your own address
+space, or IaaS components such as the ECS services here that must be told which
+subnet to sit in. What comes with it is that **you own making the cluster work
+with the agent**. The agent needs a network path to the cluster's API server, and
+in atom mode the blueprint author provides it — your peering, your routing, your
+DNS. A private control plane is entirely available on that basis:
+[**PRIVATE_CLUSTER.md**](./PRIVATE_CLUSTER.md) is the concrete per-cloud procedure,
+including where the agent actually sits so you know what you are peering to.
+
+**Pick molecule** when the environment's governed network is the one you are
+meant to be in. There the environment provides that path and there is nothing for
+you to build. (What posture the cluster ends up with on AWS depends on the agent
+sharing its VPC — the molecule sample's README is precise about which environments
+that holds for.)
+
 ## What it provisions
 
 ```

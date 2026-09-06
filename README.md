@@ -10,12 +10,39 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 - A Fractal Cloud account with a service account
 - Every sample pins `"@fractal_cloud/sdk": "^2.5.4"`
 
+## Two network modes, and the progression between them
+
+Container-platform samples come in two shapes, and it is worth knowing which you
+are reading before you copy one. The difference is a **division of
+responsibility**, not a difference in capability — both can run a private cluster:
+
+1. **Molecule — [`governed_network_container_platform`](./governed_network_container_platform).**
+   The environment provides a governed network following AWS Cloud Adoption
+   Framework / Well-Architected, and the LiveSystem is placed into it. The
+   blueprint declares no network at all. Reachability between the reconciling
+   agent and the cluster is the platform's job; there is nothing for you to build.
+   (On AWS the endpoint posture that follows from this depends on the agent
+   sharing the cluster's VPC — today a management environment. The sample's README
+   is precise about it; do not quote "molecule ⇒ private" without reading it.)
+2. **Atom — [`basic_container_platform`](./basic_container_platform).** The
+   blueprint brings its own `VirtualNetwork`, `Subnet` and `SecurityGroup`. You
+   own the topology, and with it you own making the cluster work with the agent.
+3. **Discharging that responsibility —
+   [`basic_container_platform/PRIVATE_CLUSTER.md`](./basic_container_platform/PRIVATE_CLUSTER.md).**
+   How an author composes the atoms for a private cluster in their own network,
+   what each atom contributes, which atoms do **not** exist today (peering, routes
+   and name resolution have none), where the reconciling agent actually sits, and
+   the per-cloud steps for the two halves the agent needs: a **route** to the API
+   endpoint and **resolution of its name**. DNS does not follow connectivity —
+   they are separate tasks.
+
 ## Samples
 
 | Sample | Entrypoints (`src/*.ts`) | What it builds |
 |--------|--------------------------|----------------|
 | [basic_iaas](./basic_iaas) | `aws` `azure` `gcp` `oci` `hetzner` | VirtualNetwork + Subnet + SecurityGroup + two VirtualMachines, with a web→api traffic rule |
-| [basic_container_platform](./basic_container_platform) | `aws` `azure` `gcp` | Network + Subnet + SecurityGroup + ContainerPlatform + three Workloads: web/api on the vendor container service, plus one running inside the cluster on the vendor-neutral Kubernetes offer (images and replicas set through operations) |
+| [basic_container_platform](./basic_container_platform) | `aws` `azure` `gcp` | Network + Subnet + SecurityGroup + ContainerPlatform + three Workloads: web/api on the vendor container service, plus one running inside the cluster on the vendor-neutral Kubernetes offer (images and replicas set through operations). **Atom mode** — the blueprint brings its own network, and owns making it work with the reconciling agent ([PRIVATE_CLUSTER.md](./basic_container_platform/PRIVATE_CLUSTER.md)) |
+| [governed_network_container_platform](./governed_network_container_platform) | `aws` `azure` `gcp` | **Molecule mode** — ContainerPlatform + one in-cluster Workload placed in the ENVIRONMENT's governed (CAF / Well-Architected) network. No VirtualNetwork/Subnet/SecurityGroup at all; providing the agent's path to the cluster is the platform's job rather than yours |
 | [basic_storage](./basic_storage) | `azure` `gcp` `mixed` | ObjectStorage + RelationalDbms; the `withDatabases([...])` operation adds `RelationalDatabase` children at specialize time. `mixed.ts` spans two vendors (AWS S3 + Azure PostgreSQL) in one LiveSystem |
 | [basic_messaging](./basic_messaging) | `azure` `gcp` | Broker + two MessagingEntity topics (72 h retention guardrail) |
 | [basic_big_data](./basic_big_data) | `aws` `azure` `gcp` | ComputeCluster + DataProcessingJob + MlExperiment + Datalake — Databricks on all three clouds, lake on the native object store |
@@ -171,6 +198,7 @@ Extra provider variables: `OCI_COMPARTMENT_ID` (`basic_iaas` on OCI);
 |--------|-------|---------|-------|-------|-----------|-------------|----------|-------------|
 | `basic_iaas` | EC2 | Azure VM | GCP VM | OCI Instance | Hetzner Server | — | — | — |
 | `basic_container_platform` | EKS + ECS Fargate + K8s workload | AKS + Container Apps + K8s workload | GKE + Cloud Run + K8s workload | — | — | — | — | — |
+| `governed_network_container_platform` | EKS + K8s workload | AKS + K8s workload | GKE + K8s workload | — | — | — | — | — |
 | `basic_storage` | S3 (via `mixed.ts`) | Blob + PostgreSQL | Cloud Storage + Cloud SQL | — | — | — | — | — |
 | `basic_messaging` | — | Service Bus | Pub/Sub | — | — | — | — | — |
 | `basic_big_data` | Databricks + S3 lake | Databricks + ADLS | Databricks + GCS | — | — | — | — | — |
