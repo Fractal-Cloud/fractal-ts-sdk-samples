@@ -15,6 +15,7 @@ import {
   AwsSecurityGroup,
   Eks,
   EcsService,
+  K8sWorkload,
 } from '@fractal_cloud/sdk/model';
 
 const environment = {
@@ -39,6 +40,15 @@ async function main() {
     .withWebReplicas(2)
     .withApiImage('registry.redhat.io/ubi9/httpd-24:latest')
     .withApiReplicas(2)
+    // The in-cluster tier: a public, unauthenticated image, fully qualified so
+    // the CaaS agent does not prefix it with the environment's own registry.
+    // Docker Hub's mirror on ECR Public rather than docker.io itself: Hub
+    // throttles anonymous pulls per source IP, and a whole cluster egresses
+    // through one shared NAT address, so a throttled pull would show up as an
+    // ImagePullBackOff indistinguishable from a real reconcile failure.
+    .withInClusterImage('public.ecr.aws/docker/library/nginx:alpine')
+    .withInClusterPort(80)
+    .withInClusterReplicas(1)
     .toLiveSystem({
       name: 'basic-container-platform',
       environment,
@@ -50,6 +60,9 @@ async function main() {
         'app-cluster': Eks({}),
         'web-workload': EcsService({launchType: 'FARGATE'}),
         'api-workload': EcsService({launchType: 'FARGATE'}),
+        // The in-cluster tier: the SAME vendor-neutral CaaS offer in all three
+        // files. It runs on 'app-cluster' above, whichever cloud provides it.
+        'cluster-workload': K8sWorkload({namespace: 'acme-container-platform'}),
       },
     });
 

@@ -19,10 +19,11 @@
  *
  * STRUCTURE (deps + links) is owned entirely by the blueprint:
  *   - Subnet/SecurityGroup depend on the VirtualNetwork.
- *   - ContainerPlatform depends on the Subnet; each Workload depends on the
- *     cluster AND the subnet.
- *   - Links: each workload is a member of the app SecurityGroup; the web tier
- *     links to the api tier with a traffic rule on port 8080.
+ *   - ContainerPlatform depends on the Subnet; the web and api Workloads depend
+ *     on the cluster AND the subnet, and the in-cluster Workload depends on the
+ *     cluster alone.
+ *   - Links: the web and api workloads are members of the app SecurityGroup;
+ *     the web tier links to the api tier with a traffic rule on port 8080.
  *
  * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
@@ -51,8 +52,9 @@ export function authorFractal() {
     id: 'basic-container-platform',
     version: {major: 1, minor: 0, patch: 0},
     description:
-      'Governed container platform: a network, a managed cluster, and a ' +
-      'web + api workload pair.',
+      'Governed container platform: a network, a managed cluster, a web + ' +
+      'api workload pair on the vendor container service, and a third ' +
+      'workload running inside the cluster itself.',
     boundedContextId,
     blueprint: bp => {
       // ── Network — the VPC's address space is a governed guardrail. ──
@@ -124,12 +126,30 @@ export function authorFractal() {
           .dependsOn(subnet),
       );
 
+      // ── The in-cluster tier — this one runs ON the cluster above, as a
+      //    container in it, not beside it on a managed container service. It is
+      //    the same abstract Component as the other two; what differs is the
+      //    offer each <cloud>.ts selects for it: the api and web tiers take the
+      //    vendor container service (ECS / Cloud Run / Container Apps), this one
+      //    takes the vendor-NEUTRAL CaaS offer, so the identical line appears in
+      //    all three files. Its only dependency is the cluster: that edge is how
+      //    the reconciling agent finds the cluster to deploy into (it walks the
+      //    dependency chain for the managed-cluster component and authenticates
+      //    against that cloud). It is deliberately NOT a member of the app
+      //    security group — pod networking is the cluster's, not the VPC's. ──
+      const inCluster = bp.add(
+        Workload({
+          id: 'cluster-workload',
+          displayName: 'In-Cluster Workload',
+        }).dependsOn(cluster),
+      );
+
       // ── Links (structure) — membership + traffic rules, architect-owned. ──
       bp.link(api, sg); // api is a member of the app security group
       bp.link(web, sg); // web is a member of the app security group
       bp.link(web, api, {fromPort: 8080, toPort: 8080, protocol: 'tcp'}); // web → api
 
-      return {network, subnet, sg, cluster, api, web};
+      return {network, subnet, sg, cluster, api, web, inCluster};
     },
 
     // ── OPERATIONS — application-level verbs only. What the APP decides: which
@@ -145,6 +165,28 @@ export function authorFractal() {
       withApiImage: (image: string) => s.api.set('image', image),
       /** How many replicas of the api tier to run. */
       withApiReplicas: (replicas: number) => s.api.set('replicas', replicas),
+      /**
+       * The container image the in-cluster tier ships.
+       *
+       * The param key is `containerImage`, not `image`. That is the published
+       * contract of the `CustomWorkloads.CaaS.KubernetesWorkload` offer, in
+       * both places that publish one — the catalogue and the agent that owns
+       * the offer — and the keys are `containerImage` / `containerPort` /
+       * `replicas` / `namespace`. The vendor container services read `image`
+       * instead: same abstract Component, two parameter vocabularies, so these
+       * operations cannot share a setter with the web and api tiers. Pass a
+       * FULLY-QUALIFIED image: the agent prefixes a host-less image (one whose
+       * first path segment carries no `.` or `:`) with the environment's own
+       * container registry, which a public image is not in.
+       */
+      withInClusterImage: (image: string) =>
+        s.inCluster.set('containerImage', image),
+      /** The port the in-cluster tier listens on. */
+      withInClusterPort: (port: number) =>
+        s.inCluster.set('containerPort', port),
+      /** How many replicas of the in-cluster tier to run. */
+      withInClusterReplicas: (replicas: number) =>
+        s.inCluster.set('replicas', replicas),
     }),
   });
 }

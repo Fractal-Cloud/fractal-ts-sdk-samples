@@ -15,7 +15,7 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 | Sample | Entrypoints (`src/*.ts`) | What it builds |
 |--------|--------------------------|----------------|
 | [basic_iaas](./basic_iaas) | `aws` `azure` `gcp` `oci` `hetzner` | VirtualNetwork + Subnet + SecurityGroup + two VirtualMachines, with a web→api traffic rule |
-| [basic_container_platform](./basic_container_platform) | `aws` `azure` `gcp` | Network + Subnet + SecurityGroup + ContainerPlatform + two Workloads (web/api images and replicas set through operations) |
+| [basic_container_platform](./basic_container_platform) | `aws` `azure` `gcp` | Network + Subnet + SecurityGroup + ContainerPlatform + three Workloads: web/api on the vendor container service, plus one running inside the cluster on the vendor-neutral Kubernetes offer (images and replicas set through operations) |
 | [basic_storage](./basic_storage) | `azure` `gcp` `mixed` | ObjectStorage + RelationalDbms; the `withDatabases([...])` operation adds `RelationalDatabase` children at specialize time. `mixed.ts` spans two vendors (AWS S3 + Azure PostgreSQL) in one LiveSystem |
 | [basic_messaging](./basic_messaging) | `azure` `gcp` | Broker + two MessagingEntity topics (72 h retention guardrail) |
 | [basic_big_data](./basic_big_data) | `aws` `azure` `gcp` | ComputeCluster + DataProcessingJob + MlExperiment + Datalake — Databricks on all three clouds, lake on the native object store |
@@ -170,7 +170,7 @@ Extra provider variables: `OCI_COMPARTMENT_ID` (`basic_iaas` on OCI);
 | Sample | `aws` | `azure` | `gcp` | `oci` | `hetzner` | self-hosted | `vmware` | `openshift` |
 |--------|-------|---------|-------|-------|-----------|-------------|----------|-------------|
 | `basic_iaas` | EC2 | Azure VM | GCP VM | OCI Instance | Hetzner Server | — | — | — |
-| `basic_container_platform` | EKS + ECS Fargate | AKS + Container Apps | GKE + Cloud Run | — | — | — | — | — |
+| `basic_container_platform` | EKS + ECS Fargate + K8s workload | AKS + Container Apps + K8s workload | GKE + Cloud Run + K8s workload | — | — | — | — | — |
 | `basic_storage` | S3 (via `mixed.ts`) | Blob + PostgreSQL | Cloud Storage + Cloud SQL | — | — | — | — | — |
 | `basic_messaging` | — | Service Bus | Pub/Sub | — | — | — | — | — |
 | `basic_big_data` | Databricks + S3 lake | Databricks + ADLS | Databricks + GCS | — | — | — | — | — |

@@ -1,6 +1,6 @@
 # basic_container_platform
 
-Demonstrates a cloud-agnostic two-tier container workload using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS (ECS), Azure (Container Apps), or GCP (Cloud Run)** — pick the target provider at runtime with a single environment variable. The vendor is named only when offers are selected.
+Demonstrates a cloud-agnostic three-tier container workload using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS (ECS), Azure (Container Apps), or GCP (Cloud Run)** for the web and api tiers, plus a third tier that runs *inside* the managed cluster the sample creates, on the vendor-neutral Kubernetes offer. Pick the target provider by running its entrypoint. The vendor is named only when offers are selected.
 
 ## What it provisions
 
@@ -11,15 +11,28 @@ SecurityGroup (app-sg)
     ├── ingress: TCP 80   from 0.0.0.0/0     (public HTTP)
     └── ingress: TCP 8080 from 10.181.0.0/16 (internal only)
 ContainerPlatform (app-cluster)   — node pool "system", autoscaling 1–3
-    ├── web-workload  (deps: cluster + subnet)  — member of app-sg, links to api on TCP 8080
-    └── api-workload  (deps: cluster + subnet)  — member of app-sg
+    ├── web-workload      (deps: cluster + subnet)  — member of app-sg, links to api on TCP 8080
+    ├── api-workload      (deps: cluster + subnet)  — member of app-sg
+    └── cluster-workload  (deps: cluster)           — runs ON the cluster (K8s Deployment + Service)
 ```
 
 All structure — CIDR/ingress guardrails, node-pool topology, dependencies, and
 the `web-workload → api-workload` traffic-rule link on port 8080 — is declared
 once in `fractal.ts`. The container images and replica counts are **application
 choices**, set through the Fractal's operations in each per-cloud entrypoint
-(here: web = `nginx:alpine` ×2, api = `registry.redhat.io/ubi9/httpd-24:latest` ×2).
+(here: web = `nginx:alpine` ×2, api = `registry.redhat.io/ubi9/httpd-24:latest` ×2,
+in-cluster = `public.ecr.aws/docker/library/nginx:alpine` ×1 on port 80).
+
+`cluster-workload` is the tier that exercises the cluster itself: its offer is
+`K8sWorkload`, the vendor-neutral CaaS offer, identical in all three
+entrypoints. The agent that reconciles it finds the cluster by walking the
+component's dependency edge to `app-cluster`, so that single `dependsOn` is what
+routes it to AKS, EKS or GKE. Its image must be **fully qualified**
+(`public.ecr.aws/docker/library/...`): a host-less image is prefixed with the
+environment's own container registry, which a public image is not in. It points
+at Docker Hub's ECR Public mirror rather than `docker.io` because Hub rate-limits
+anonymous pulls per source IP, and a throttled pull looks exactly like a failed
+reconcile.
 
 ## Project layout
 
@@ -27,7 +40,9 @@ choices**, set through the Fractal's operations in each per-cloud entrypoint
 src/
   fractal.ts   # Cloud-agnostic blueprint — ALL structure + guardrails, plus the
                #   typed operations interface (withWebImage / withWebReplicas /
-               #   withApiImage / withApiReplicas). Abstract Components only.
+               #   withApiImage / withApiReplicas / withInClusterImage /
+               #   withInClusterPort / withInClusterReplicas). Abstract
+               #   Components only.
   aws.ts       # Self-contained AWS entrypoint — copy and run
   azure.ts     # Self-contained Azure entrypoint — copy and run
   gcp.ts       # Self-contained GCP entrypoint — copy and run
@@ -61,9 +76,10 @@ Pick a provider by running its entrypoint: `aws.js` · `azure.js` · `gcp.js`
 node build/src/azure.js
 ```
 
-Per provider, the workload offer is ECS (`EcsService`, Fargate) on AWS,
-`AzureContainerApp` on Azure, and `CloudRun` on GCP; the cluster is `Eks` / `Aks`
-/ `Gke`. Offer config (launch type, region, resource group) is set as literals in
+Per provider, the web and api workload offer is ECS (`EcsService`, Fargate) on
+AWS, `AzureContainerApp` on Azure, and `CloudRun` on GCP; the cluster is `Eks` /
+`Aks` / `Gke`. The in-cluster tier is `K8sWorkload` on every provider — that is
+the point of a vendor-neutral CaaS offer. Offer config (launch type, region, resource group) is set as literals in
 the `select` map of each per-cloud entrypoint.
 
 ## Quick start
