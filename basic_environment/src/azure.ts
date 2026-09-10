@@ -37,6 +37,35 @@ const AGENT_AUTH = (
   process.env['AZURE_CLOUD_AGENT_AUTH'] ?? 'sp'
 ).toLowerCase();
 
+// Whether `environments.deploy` re-initializes the cloud agents even when the
+// stored initialization run already reads `Completed`. ON by default here, and
+// this sample is the reason the SDK option exists.
+//
+// A stored `Completed` run proves an initialization once FINISHED; it does not
+// prove the agent is still there. When this sample's management plane was
+// deleted out of band by an unrelated cleanup job, the run stayed `Completed`,
+// so no further initialize was ever sent, `agentInit: 'wait'` re-read that same
+// finished run and logged success, and the environment record was itself intact
+// so create/update logged "up-to-date". Every deploy was green for 16 days
+// while the LiveSystem sat entirely `Unknown` behind ENVIRONMENT_HAS_NO_AGENT.
+//
+// Which is why forcing only "on failure" is not available here: there is no
+// failure to branch on. The environment deploy SUCCEEDS, and the damage only
+// surfaces one step later, in the LiveSystem, once the run is already lost.
+// Reacting to it would mean catching that error and looping back to re-deploy
+// the environment - a retry topology this sample has no business teaching.
+//
+// Forcing unconditionally costs one extra POST .../initialize per cloud agent
+// (two here: the management agent and the operational one) plus the
+// `agentInit: 'wait'` poll until the fresh run completes. That is the right
+// trade for a plane that is disposable by design and re-initialized
+// create-or-update rather than recreated. A customer copying this file into a
+// LONG-LIVED environment should not pay it on every run, so it is a knob rather
+// than a constant: AZURE_REINITIALIZE_AGENTS=false restores the SDK default.
+const REINITIALIZE_AGENTS =
+  (process.env['AZURE_REINITIALIZE_AGENTS'] ?? 'true').toLowerCase() !==
+  'false';
+
 // Control-plane credentials (same as any LiveSystem deploy).
 const credentials = {
   clientId: process.env['SERVICE_ACCOUNT_ID']!,
@@ -164,7 +193,11 @@ async function fetchAzureFederatedToken(): Promise<string> {
 async function main() {
   // 1. Deploy the environment tree: create/update mgmt + operational envs, push
   //    secrets + CI/CD profiles, initialize cloud agents. `agentInit: 'wait'`
-  //    blocks until each cloud-agent initialization completes (poll + step log).
+  //    blocks until each cloud-agent initialization completes (poll + step log),
+  //    and `reinitializeAgents` forces that initialization even when a stored
+  //    run still reads `Completed` - see REINITIALIZE_AGENTS above. ONE options
+  //    object covers the whole tree: the SDK initializes the management agent
+  //    and then each operational env's inherited agent from these same opts.
   //    Provider credentials are passed explicitly (never read from process.env
   //    by the SDK). In 'sp' mode they are the SP client id + secret; in 'oidc'
   //    mode a (public) client id + a freshly-minted federated token, which the
@@ -173,6 +206,7 @@ async function main() {
     const federatedToken = await fetchAzureFederatedToken();
     await cloud.environments.deploy(management, {
       agentInit: 'wait',
+      reinitializeAgents: REINITIALIZE_AGENTS,
       providerCredentials: {
         azure: {
           clientId: process.env['AZURE_SP_CLIENT_ID']!,
@@ -183,6 +217,7 @@ async function main() {
   } else {
     await cloud.environments.deploy(management, {
       agentInit: 'wait',
+      reinitializeAgents: REINITIALIZE_AGENTS,
       providerCredentials: {
         azure: {
           spClientId: process.env['AZURE_SP_CLIENT_ID']!,
