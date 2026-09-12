@@ -14,7 +14,6 @@ import {
   AzureSubnet,
   AzureNsg,
   Aks,
-  AzureContainerApp,
   K8sWorkload,
 } from '@fractal_cloud/sdk/model';
 
@@ -58,8 +57,15 @@ async function main() {
         'private-subnet': AzureSubnet({}),
         'app-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-cp'}),
         'app-cluster': Aks({}),
-        'web-workload': AzureContainerApp({resourceGroup: 'rg-cp'}),
-        'api-workload': AzureContainerApp({resourceGroup: 'rg-cp'}),
+        // The blueprint says these run on 'app-cluster', so on Azure they are
+        // plain Kubernetes workloads on the AKS cluster above. The serverless
+        // alternative, AzureContainerApp, does NOT run on a cluster: it needs a
+        // managed AzureContainerAppsEnvironment as a dependency, which is a
+        // second platform this blueprint does not have. Selecting it here left
+        // both workloads failing in the agent with `has no
+        // AzureContainerAppsEnvironment dependency`.
+        'web-workload': K8sWorkload({namespace: 'acme-container-platform'}),
+        'api-workload': K8sWorkload({namespace: 'acme-container-platform'}),
         // The in-cluster tier: the SAME vendor-neutral CaaS offer in all three
         // files. It runs on 'app-cluster' above, whichever cloud provides it.
         'cluster-workload': K8sWorkload({namespace: 'acme-container-platform'}),
