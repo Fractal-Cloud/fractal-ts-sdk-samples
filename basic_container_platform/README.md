@@ -105,9 +105,12 @@ node build/src/azure.js
 ```
 
 Per provider, the web and api workload offer is ECS (`EcsService`, Fargate) on
-AWS, `AzureContainerApp` on Azure, and `CloudRun` on GCP; the cluster is `Eks` /
+AWS, `K8sWorkload` on Azure, and `CloudRun` on GCP; the cluster is `Eks` /
 `Aks` / `Gke`. The in-cluster tier is `K8sWorkload` on every provider — that is
-the point of a vendor-neutral CaaS offer. Offer config (launch type, region, resource group) is set as literals in
+the point of a vendor-neutral CaaS offer. Azure uses it for all three: the
+serverless offer there, `AzureContainerApp`, does not run on a cluster at all —
+it requires a managed `AzureContainerAppsEnvironment` as a dependency, a second
+platform this blueprint does not declare. Offer config (launch type, region, resource group) is set as literals in
 the `select` map of each per-cloud entrypoint.
 
 ## Quick start
