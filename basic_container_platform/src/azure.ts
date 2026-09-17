@@ -37,7 +37,7 @@ async function main() {
     // Application-level operations: the app picks its images + replica counts.
     .withWebImage('nginx:alpine')
     .withWebReplicas(2)
-    .withApiImage('registry.redhat.io/ubi9/httpd-24:latest')
+    .withApiImage('registry.access.redhat.com/ubi9/httpd-24:latest')
     .withApiReplicas(2)
     // The in-cluster tier: a public, unauthenticated image, fully qualified so
     // the CaaS agent does not prefix it with the environment's own registry.
