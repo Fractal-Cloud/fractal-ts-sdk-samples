@@ -38,27 +38,56 @@ src/
                #   (that edge is how the agent resolves which cluster to install on)
                #   and links to the gateway.
                #   No operations (platform observability; no app-level verbs to expose).
-  azure.ts     # Dev layer: self-contained, runnable Azure entrypoint — copy and run.
-               #   Selects one offer per component in the `select` map, then deploys.
+  azure.ts     # Dev layer: runnable Azure entrypoint — copy it with azure_select.ts and run.
+  azure_select.ts # The offer per component (the `select` map). Kept apart so
+               #   azure_select.test.ts can build the LiveSystem without deploying.
 ```
 
 ### Blueprint → offer mapping
 
-| Blueprint component | ID | Offer selected in `azure.ts` |
+| Blueprint component | ID | Offer selected in `azure_select.ts` |
 |---------------------|----|-------------------------------|
 | `VirtualNetwork` | `acme-observability-network` | `AzureVnet({})` |
 | `Subnet` | `platform-subnet` | `AzureSubnet({})` |
 | `ContainerPlatform` | `platform-cluster` | `Aks({})` |
-| `ApiGateway` | `platform-gateway` | `Ambassador({namespace: 'ambassador', …})` |
+| `ApiGateway` | `platform-gateway` | `Ambassador({namespace: 'ambassador'})` |
 | `Monitoring` | `monitoring` | `Prometheus({namespace: 'monitoring'})` |
 | `Tracing` | `tracing` | `Jaeger({namespace: 'tracing'})` |
-| `Logging` | `logging` | `ObservabilityElastic({namespace: 'logging'})` |
+| `Logging` | `logging` | `ObservabilityElastic({namespace: 'logging', elasticVersion: '8.5.3', elasticInstances: 1, storage: '10Gi', …})` |
 
 Architect guardrails (retention, scrape interval, sampling rate, CIDRs, node pools) are locked in `fractal.ts`. There are no dev-open operations — the stack is fully governed.
 
-### The gateway's Host settings
+### The Elastic stack's settings
 
-`Ambassador` needs three settings besides its namespace before the agent will create its Host: `hostOwnerEmail`, `acmeProviderAuthority` and `tlsSecretName`. This sample sets `acmeProviderAuthority: 'none'`, which disables ACME — a public certificate authority cannot issue a certificate for a bare load-balancer IP, and the sample brings no DNS name of its own. To get a real certificate, set a `host` you own and point the authority at `https://acme-v02.api.letsencrypt.org/directory`.
+The agent's published parameter contract for `Observability.CaaS.Elastic` requires `elasticVersion`,
+`elasticInstances` and `storage`, and defaults none of them. `azure_select.test.ts` checks the
+`logging` component against a copy of that contract (`contract/observability-caas-elastic.json`, taken
+from the Azure agent image it names), so a missing or undeclared key fails `npm test` rather than a
+sweep. `memory: 0` and `cpu: 0` leave the Elasticsearch pod to the ECK operator's defaults: the agent
+multiplies an explicit count by 4G / 2000m, which no node this cluster auto-selects can hold.
+
+### The gateway
+
+`aria-agent-caas-k8s` installs the gateway (Emissary-ingress) into the `ambassador` namespace and publishes it as
+Service `edge-stack`, which is where the Prometheus and Elastic offers look for it. Set `host` on the gateway to a DNS
+name you own to publish the consoles on it rather than on the load balancer's address. No TLS Host or certificate is
+created yet.
+
+`aria-agent-caas-k8s` is the only agent that installs an Ambassador gateway. It fails one it cannot serve, with the
+reason, and installs nothing: setting `hostOwnerEmail`, `acmeProviderAuthority`, `tlsSecretName`, `licenseKey` or
+`dnsZoneConfig`, linking from the gateway, depending on no cluster or on more than one, or a cluster it cannot reach
+(for example `'tlsSecretName' is not served by aria-agent-caas-k8s …`). `src/gateway_servable.test.ts` fails if the
+sample's gateway stops being one caas-k8s serves.
+
+Three consequences:
+
+- **caas-k8s must be deployed** in the environment, for the cluster's cloud. Nothing else writes the gateway, so
+  without it the gateway stays `Unknown`.
+- **An Ocelot behind the gateway** fails on its own component: it needs Ambassador Edge Stack's Filter resources, which
+  Emissary does not have.
+- **A cluster that still runs the legacy Edge Stack** (installed by `fractal-cloud-agents` before caas-k8s owned the
+  gateway) is refused, with "Nothing was changed": the two share cluster-wide CRDs. Remove the legacy install, or
+  redeploy onto a fresh cluster.
 
 ### Grafana is not open
 
@@ -85,7 +114,6 @@ variable this sample reads, with the required ones left blank. This sample has a
 | `OWNER_ID` | yes | UUID of the Fractal Cloud owner |
 | `ENVIRONMENT_NAME` | no | Kebab-case environment name (default: `dev`) |
 | `BC_NAME` | no | Bounded-context name (default: `wizard`) |
-| `GATEWAY_OWNER_EMAIL` | no | Owner email on the gateway's Host (default: `platform@example.com`) |
 | `DEPLOY_MODE` | no | `wait` (default) or `fire-and-forget` |
 
 ## Running
