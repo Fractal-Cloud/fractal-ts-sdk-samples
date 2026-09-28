@@ -1,0 +1,88 @@
+{
+  "source": "fractal.cloudagent.azure.container param-contract referrer (application/vnd.fractal.param-contract.v1+json)",
+  "image": "crevergreen.azurecr.io/yanchware/fractal.cloudagent.azure.container@sha256:5a372f9d5eb0495bedc4b99fbba9ea467144525feb7adcf631ff2fd5c989e0c4",
+  "fetched": "2026-09-22",
+  "agentVersion": "v8.17.1",
+  "provider": "Azure",
+  "offer": {
+    "offerType": "Observability.CaaS.Elastic",
+    "provider": "Azure",
+    "params": [
+      {
+        "key": "elasticVersion",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "key": "elasticInstances",
+        "required": true,
+        "type": "integer"
+      },
+      {
+        "key": "storage",
+        "required": true,
+        "type": "string"
+      },
+      {
+        "key": "storageClassName",
+        "required": false,
+        "type": "string",
+        "default": ""
+      },
+      {
+        "key": "memory",
+        "required": false,
+        "type": "integer",
+        "default": 8
+      },
+      {
+        "key": "cpu",
+        "required": false,
+        "type": "integer",
+        "default": 8
+      },
+      {
+        "key": "isApmRequired",
+        "required": false,
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "key": "isKibanaRequired",
+        "required": false,
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "isKibanaPubliclyExposed",
+        "required": false,
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "key": "secrets",
+        "required": false,
+        "type": "map",
+        "default": {}
+      },
+      {
+        "key": "namespace",
+        "required": false,
+        "type": "string",
+        "note": "defaults to the component id when absent"
+      },
+      {
+        "key": "containerPlatform",
+        "required": false,
+        "type": "string",
+        "note": "deprecated: the target cluster is derived from this component's dependency on the Kubernetes cluster; the parameter is accepted only as a backward-compat fallback"
+      },
+      {
+        "key": "region",
+        "required": false,
+        "type": "string",
+        "note": "defaults to the resource group's (environment's) region when absent"
+      }
+    ]
+  }
+}
