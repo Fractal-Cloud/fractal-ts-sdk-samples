@@ -16,11 +16,7 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
-<<<<<<< Updated upstream
     "@fractal_cloud/sdk": "^2.7.6"
-=======
-    "@fractal_cloud/sdk": "^2.7.1"
->>>>>>> Stashed changes
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
