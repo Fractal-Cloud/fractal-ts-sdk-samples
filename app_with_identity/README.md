@@ -34,12 +34,13 @@ src/
   azure.ts     # Azure AKS + Entra + Azure Postgres
 ```
 
-## ⚠️ Container image — REQUIRED before the workload can run
+## Container image
 
-`withStatefulService({ image: 'acme/web:1.4.0' })` is a **placeholder for YOUR
-application image**. The platform does not build or supply it. The workload will
-sit in `ImagePullBackOff` until the referenced image exists somewhere the target
-cluster can pull from. You must do one of the following.
+The entrypoints ship `image: 'public.ecr.aws/nginx/nginx:latest'`, a
+fully-qualified public image, so the sample deploys end-to-end on any cluster
+with no registry push and no pull secret. It is a **stand-in for YOUR
+application image**: the platform does not build or supply one. To run your own
+app, change the `image` passed to `withStatefulService` in the entrypoint.
 
 ### How the image reference is resolved
 
@@ -56,8 +57,9 @@ image is present in that provider's registry.
 
 ### Option A — push your image to the cluster's provider registry (bare tag)
 
-Keeps `image: 'acme/web:1.4.0'`. Push to the registry the agent will prefix to.
-AWS/EKS example (adjust account/region; use `az acr` / `gcloud artifacts` for
+Use a bare tag such as `image: 'acme/web:1.4.0'`, and push the image to the
+registry the agent will prefix it with. Until it is there, the workload sits in
+`ImagePullBackOff`. AWS/EKS example (adjust account/region; use `az acr` / `gcloud artifacts` for
 Azure/GCP):
 
 ```bash
@@ -80,16 +82,17 @@ docker buildx build -t "$REGISTRY/acme/web:1.4.0" --push .
 Otherwise (cross-account / private third-party registry), supply a pull secret via
 the workload's `imagePullSecrets`.
 
-### Option B — use a fully-qualified public image (no push)
+### Option B — a fully-qualified image (what the sample ships)
 
-Fastest way to see the sample deploy end-to-end. Replace the placeholder in the
-entrypoint with a public, no-auth image:
+Pass an image with a registry host, for example a public no-auth image
+(the default) or your own external registry:
 
 ```ts
-.withStatefulService({ name: 'orders', image: 'public.ecr.aws/nginx/nginx:latest', ... })
+.withStatefulService({ name: 'orders', image: 'myrepo.io/app:1.4.0', ... })
 ```
 
-This pulls on any cluster with no registry setup and no pull secret.
+A public image pulls on any cluster with no registry setup and no pull secret.
+A private external registry needs the workload's `imagePullSecrets`.
 
 ### Image expectations
 
@@ -139,8 +142,8 @@ node build/src/azure.js     # Azure AKS + Entra + Azure Postgres
 ```
 
 In `wait` mode the sample blocks until the LiveSystem is Active (or exits
-non-zero on failure). Note the workload only reaches Active once its image is
-pullable (see above).
+non-zero on failure). If you swap in your own image, the workload only reaches
+Active once that image is pullable (see above).
 
 ## Lint and type-check
 

@@ -45,7 +45,10 @@ async function main() {
     .withUserDirectory('acme')
     .withStatefulService({
       name: 'orders',
-      image: 'acme/web:1.4.0',
+      // Fully-qualified public image: pulled as written on any cluster, with
+      // no registry push or pull secret. To run your own app image instead,
+      // see "Container image" in the README.
+      image: 'public.ecr.aws/nginx/nginx:latest',
       redirectUris: ['https://app.acme.example/oauth2/callback'],
       logoutUris: ['https://app.acme.example/logout'],
       scopes: ['openid', 'profile', 'email'],
