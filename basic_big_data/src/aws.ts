@@ -47,7 +47,8 @@ async function main() {
         'analytics-workspace': AwsDatabricks({
           pricingTier: 'premium',
           credentialsId: process.env['DATABRICKS_CREDENTIALS_ID'] ?? '',
-          storageConfigurationId: process.env['DATABRICKS_STORAGE_CONFIGURATION_ID'] ?? '',
+          storageConfigurationId:
+            process.env['DATABRICKS_STORAGE_CONFIGURATION_ID'] ?? '',
         }),
         'analytics-cluster': AwsDatabricksCluster({}),
         'etl-job': AwsDatabricksJob({}),
