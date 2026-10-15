@@ -29,14 +29,32 @@ const boundedContextId = {
 };
 
 /**
+ * The guardrails that depend on the target's offers. Building a LiveSystem
+ * refuses a guardrail its selected offer cannot enforce, so the architect locks
+ * only what the target honors. A posture is its own Fractal (its own id): one
+ * blueprint id must not stand for two different sets of guardrails.
+ */
+export type Posture = {
+  /** The Fractal id of this posture. */
+  id: string;
+  /**
+   * Lock each topic's message retention. Service Bus honors it; the
+   * Pub/Sub topic agent has no retention setting.
+   */
+  lockRetention: boolean;
+};
+
+/**
  * Author the "governed messaging" Fractal. Returns a reusable, immutable
  * Fractal: `.specialize()` never mutates it, so it is safe to author once and
  * instantiate many times (see <cloud>.ts).
  */
-export function authorFractal() {
+export function authorFractal(
+  posture: Posture = {id: 'basic-messaging', lockRetention: true},
+) {
   return createFractal({
-    id: 'basic-messaging',
-    version: {major: 1, minor: 0, patch: 0},
+    id: posture.id,
+    version: {major: 1, minor: 1, patch: 0},
     description: 'Governed messaging: an event broker + two governed topics.',
     boundedContextId,
     blueprint: bp => {
@@ -50,21 +68,31 @@ export function authorFractal() {
       // ── Topics — each is a first-class MessagingEntity that DEPENDS ON the
       //    broker: a topic cannot exist without its broker, so the agent
       //    reconciles the broker to Active first. Message retention is an
-      //    architect GUARDRAIL: 72h is locked governance, so a consuming dev
-      //    cannot shorten the audit/replay window or let messages expire faster
-      //    than policy allows. ──
+      //    architect GUARDRAIL wherever the topic offer enforces it (see
+      //    Posture): 72h is locked governance, so a consuming dev cannot shorten
+      //    the audit/replay window or let messages expire faster than policy
+      //    allows. ──
+      const retained = <T extends {withMessageRetentionHours(h: number): T}>(
+        topic: T,
+      ) =>
+        posture.lockRetention
+          ? topic.withMessageRetentionHours(72) // guardrail: locked retention window
+          : topic;
       const ordersTopic = bp.add(
-        MessagingEntity({id: 'orders-topic', displayName: 'Orders Topic'})
-          .dependsOn(broker) // existence constraint: topic needs the broker
-          .withMessageRetentionHours(72), // guardrail: locked retention window
+        retained(
+          MessagingEntity({
+            id: 'orders-topic',
+            displayName: 'Orders Topic',
+          }).dependsOn(broker), // existence constraint: topic needs the broker
+        ),
       );
       const notificationsTopic = bp.add(
-        MessagingEntity({
-          id: 'notifications-topic',
-          displayName: 'Notifications Topic',
-        })
-          .dependsOn(broker) // existence constraint: topic needs the broker
-          .withMessageRetentionHours(72), // guardrail: locked retention window
+        retained(
+          MessagingEntity({
+            id: 'notifications-topic',
+            displayName: 'Notifications Topic',
+          }).dependsOn(broker), // existence constraint: topic needs the broker
+        ),
       );
 
       return {broker, ordersTopic, notificationsTopic};

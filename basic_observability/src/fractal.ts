@@ -10,14 +10,18 @@
  * Two kinds of specialization can live here:
  *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
  *     LOCKED: a consuming dev cannot override it. These are infra PARAMETERS
- *     (retention, scrape interval, sampling rate, CIDR blocks, node pools).
+ *     (here: CIDR blocks and node pools).
  *   - OPERATIONS — the typed Interface a consuming dev uses. These are
  *     APPLICATION-level verbs (what the app decides — its dashboards, its log
  *     streams), NOT pass-through setters for infra parameters.
  *
- * This is a pure PLATFORM-observability stack: the architect governs retention
- * and sampling, and there are no application-level verbs to expose. So this
- * Fractal declares guardrails only and OMITS `operations` entirely.
+ * This is a pure PLATFORM-observability stack with no application-level verbs
+ * to expose, so this Fractal OMITS `operations` entirely.
+ *
+ * Retention, scrape interval and sampling rate are NOT guardrails here: the
+ * self-hosted Prometheus, Jaeger and Elastic offers set none of them (Jaeger's
+ * sampling is decided by the instrumented applications), and building a
+ * LiveSystem refuses a guardrail its offer cannot enforce.
  *
  * STRUCTURE (deps + links) is owned entirely by the blueprint:
  *   - Subnet depends on the VirtualNetwork; the cluster depends on the Subnet.
@@ -76,7 +80,7 @@ function dependingOn<N extends AnyNode>(node: N, target: AnyNode): N {
 export function authorFractal() {
   return createFractal({
     id: 'basic-observability',
-    version: {major: 1, minor: 0, patch: 0},
+    version: {major: 1, minor: 1, patch: 0},
     description:
       'Governed observability: metrics monitoring + distributed tracing + ' +
       'logging, on a managed cluster, published through an API gateway.',
@@ -143,34 +147,18 @@ export function authorFractal() {
         ),
       );
 
-      // ── Monitoring — retention and scrape cadence are governed. ──
+      // ── Monitoring, tracing and logging — installed on the cluster. ──
       const monitoring = bp.add(
         dependingOn(
-          Monitoring({id: 'monitoring', displayName: 'Monitoring'})
-            .withRetentionDays(30) // guardrail: how long metrics are kept
-            .withScrapeInterval(15), // guardrail: scrape cadence in seconds
+          Monitoring({id: 'monitoring', displayName: 'Monitoring'}),
           cluster,
         ),
       );
-
-      // ── Tracing — retention and sampling rate are governed. ──
       const tracing = bp.add(
-        dependingOn(
-          Tracing({id: 'tracing', displayName: 'Tracing'})
-            .withRetentionDays(7) // guardrail: how long traces are kept
-            .withSamplingRate(0.1), // guardrail: 10% trace sampling
-          cluster,
-        ),
+        dependingOn(Tracing({id: 'tracing', displayName: 'Tracing'}), cluster),
       );
-
-      // ── Logging — retention is governed. ──
       const logging = bp.add(
-        dependingOn(
-          Logging({id: 'logging', displayName: 'Logging'}).withRetentionDays(
-            30,
-          ), // guardrail
-          cluster,
-        ),
+        dependingOn(Logging({id: 'logging', displayName: 'Logging'}), cluster),
       );
 
       // ── Links (structure) — each capability is published through the gateway,
@@ -184,8 +172,7 @@ export function authorFractal() {
     },
 
     // No `operations`: this is platform observability. The architect's
-    // guardrails (retention/scrape/sampling, CIDRs, node pools) fully govern the
-    // stack and there are no application-level verbs for a consuming dev to
-    // call.
+    // guardrails (CIDRs, node pools) govern the stack and there are no
+    // application-level verbs for a consuming dev to call.
   });
 }

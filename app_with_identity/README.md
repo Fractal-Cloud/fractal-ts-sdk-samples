@@ -9,13 +9,13 @@ vendors within one LiveSystem.
 ## What it provisions
 
 ```
-ContainerPlatform (app-platform)          — managed Kubernetes (guardrails: k8s version, network policy)
-RelationalDbms    (app-dbms)              — managed relational engine (guardrails: HA, backups, version)
+ContainerPlatform (app-platform)          — managed Kubernetes (guardrails on EKS: k8s version, network policy)
+RelationalDbms    (app-dbms)              — managed relational engine (guardrails: backups, storage, version)
 IdentityProvider  (idp)                   — OAuth pool/tenant (guardrails: MFA, password policy)
 
 withStatefulService('orders') adds, in one governed verb:
   Workload            (orders)            — child of app-platform (your app image + resource/health guardrails)
-  RelationalDatabase  (orders-db)         — child of app-dbms
+  RelationalDatabase  (orders-db)         — child of app-dbms (guardrails on Azure PostgreSQL: charset, collation)
   link orders → orders-db  {access: read-write}   — DB role + connection env injected at reconcile
   link orders → idp        {clientType: web}      — provisions ONE web OAuth client
 ```
@@ -23,6 +23,22 @@ withStatefulService('orders') adds, in one governed verb:
 The `orders` **Workload** is a portable `CustomWorkloads.CaaS.KubernetesWorkload`,
 emitted by the platform offer and deployed onto the cluster by the CaaS/Kubernetes
 agent — **not** by the cloud (AWS/Azure/GCP) agent.
+
+## Guardrails per target
+
+Building a LiveSystem refuses a guardrail its selected offer cannot enforce, so
+the Fractal locks only what the target's offers honor. `authorFractal(posture)`
+takes the guardrails that differ, and each posture is its own Fractal id:
+
+| Entrypoint | Fractal id | Cluster version + network policy | Database charset + collation |
+|---|---|---|---|
+| `aws.ts` | `app-with-identity-eks-rds` | locked (EKS honors them) | not set (RDS creates databases with engine defaults) |
+| `azure.ts` | `app-with-identity-aks` | not set (the AKS agent declares neither) | locked |
+| `mixed.ts` | `app-with-identity` | locked | locked |
+
+Availability is no guardrail on any target: RDS sets it with `multiAz` /
+`readerCount` and Azure PostgreSQL with `highAvailabilityMode`, in the offer
+config.
 
 ## Project layout
 

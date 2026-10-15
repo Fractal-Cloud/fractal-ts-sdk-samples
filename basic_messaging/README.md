@@ -6,11 +6,11 @@ Demonstrates a cloud-agnostic messaging workload using the Fractal Cloud TypeScr
 
 ```
 Broker (event-broker)
-+-- MessagingEntity (orders-topic)        — dependsOn broker, retention 72h
-+-- MessagingEntity (notifications-topic) — dependsOn broker, retention 72h
++-- MessagingEntity (orders-topic)        — dependsOn broker, retention 72h (Azure)
++-- MessagingEntity (notifications-topic) — dependsOn broker, retention 72h (Azure)
 ```
 
-The broker dependency is declared in the blueprint via `.dependsOn(broker)` on each topic. Message retention (72 hours) is an architect guardrail locked in the blueprint.
+The broker dependency is declared in the blueprint via `.dependsOn(broker)` on each topic. Message retention (72 hours) is an architect guardrail locked in the blueprint wherever the topic offer enforces it. Service Bus honors it; the Pub/Sub topic agent has no retention setting, and building a LiveSystem refuses a guardrail its offer cannot enforce. So `gcp.ts` authors the Fractal without it (`authorFractal({id: 'basic-messaging-gcp', lockRetention: false})`), a Fractal of its own.
 
 ## Project layout
 
@@ -28,7 +28,7 @@ src/
 | Concern | Where |
 |---------|-------|
 | Broker and topic structure | `fractal.ts` — blueprint |
-| Topic names, retention guardrail | `fractal.ts` — blueprint params |
+| Topic names, retention guardrail (per Posture) | `fractal.ts` — blueprint params |
 | Broker → topic dependency | `fractal.ts` — `.dependsOn(broker)` |
 | Azure Service Bus namespace + topic offer config | `azure.ts` — offer config |
 | GCP Pub/Sub + topic offer config | `gcp.ts` — offer config |

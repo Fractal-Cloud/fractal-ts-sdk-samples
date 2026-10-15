@@ -26,7 +26,10 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'basic-messaging-gcp',
+    lockRetention: false,
+  });
   const liveSystem = fractal.specialize().toLiveSystem({
     name: 'basic-messaging',
     environment,

@@ -50,7 +50,7 @@ async function main() {
           storageConfigurationId:
             process.env['DATABRICKS_STORAGE_CONFIGURATION_ID'] ?? '',
         }),
-        'analytics-cluster': AwsDatabricksCluster({}),
+        'analytics-cluster': AwsDatabricksCluster({nodeTypeId: 'i3.xlarge'}),
         'etl-job': AwsDatabricksJob({}),
         'fraud-model': AwsDatabricksMlflow({}),
         // The S3 bucket namespace is GLOBAL. 'acme-lake' is owned by a third

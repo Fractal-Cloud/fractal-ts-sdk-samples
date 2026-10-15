@@ -16,11 +16,12 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.9.5"
+    "@fractal_cloud/sdk": "^2.13.0"
   },
   "devDependencies": {
-    "@types/node": "^22.7.5",
+    "@types/node": "^26.6.5",
     "gts": "^7.0.0",
-    "typescript": "^5.6.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript7": "npm:typescript@^7.0.2"
   }
 }

@@ -8,7 +8,9 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 
 - Node.js 18+
 - A Fractal Cloud account with a service account
-- Every sample pins `"@fractal_cloud/sdk": "^2.5.4"`
+- Every sample pins `"@fractal_cloud/sdk": "^2.13.0"` and compiles with TypeScript 7
+  (`typescript7`); `typescript` is the TypeScript 6 package that `gts lint` runs on,
+  as typescript-eslint does not support TypeScript 7 yet
 
 ## Two network modes, and the progression between them
 
@@ -44,10 +46,10 @@ responsibility**, not a difference in capability — both can run a private clus
 | [basic_container_platform](./basic_container_platform) | `aws` `azure` `gcp` | Network + Subnet + SecurityGroup + ContainerPlatform + three Workloads: web/api on the vendor container service, plus one running inside the cluster on the vendor-neutral Kubernetes offer (images and replicas set through operations). **Atom mode** — the blueprint brings its own network, and owns making it work with the reconciling agent ([PRIVATE_CLUSTER.md](./basic_container_platform/PRIVATE_CLUSTER.md)) |
 | [governed_network_container_platform](./governed_network_container_platform) | `aws` `azure` `gcp` | **Molecule mode** — ContainerPlatform + one in-cluster Workload placed in the ENVIRONMENT's governed (CAF / Well-Architected) network. No VirtualNetwork/Subnet/SecurityGroup at all; providing the agent's path to the cluster is the platform's job rather than yours |
 | [basic_storage](./basic_storage) | `azure` `gcp` `mixed` | ObjectStorage + RelationalDbms; the `withDatabases([...])` operation adds `RelationalDatabase` children at specialize time. `mixed.ts` spans two vendors (AWS S3 + Azure PostgreSQL) in one LiveSystem |
-| [basic_messaging](./basic_messaging) | `azure` `gcp` | Broker + two MessagingEntity topics (72 h retention guardrail) |
+| [basic_messaging](./basic_messaging) | `azure` `gcp` | Broker + two MessagingEntity topics (72 h retention guardrail on Service Bus) |
 | [basic_big_data](./basic_big_data) | `aws` `azure` `gcp` | ComputeCluster + DataProcessingJob + MlExperiment + Datalake — Databricks on all three clouds, lake on the native object store |
-| [basic_api_management](./basic_api_management) | `aws` `azure` `gcp` | A single governed ApiGateway (HTTPS-only, rate limit, CORS) with routes added via the `withRoute` operation |
-| [app_with_identity](./app_with_identity) | `azure` `mixed` | ContainerPlatform + RelationalDbms + IdentityProvider. `withStatefulService(...)` creates the workload + database and links them (`access: 'read-write'`) plus an OAuth `web` client on the IdP |
+| [basic_api_management](./basic_api_management) | `aws` `azure` `gcp` | A single ApiGateway; no gateway offer honors HTTPS-only, rate limit, CORS or a route list, so none is set (GCP routes are its `apiConfig`) |
+| [app_with_identity](./app_with_identity) | `aws` `azure` `mixed` | ContainerPlatform + RelationalDbms + IdentityProvider. `withStatefulService(...)` creates the workload + database and links them (`access: 'read-write'`) plus an OAuth `web` client on the IdP |
 | [basic_gpu_inference](./basic_gpu_inference) | `gcp` (+ `destroy`) | GPU VM self-hosting vLLM (`Qwen2.5-32B-Instruct`) on an OpenAI-compatible port 8000 reachable only inside the VPC, plus a results bucket and an `Unmanaged` AI component. Also shows `liveSystems.outputs()` and `liveSystems.destroy()` |
 | [basic_cicd](./basic_cicd) | `aws` | The IaaS scaffold deployed from a **CI/CD pipeline** using `wait` mode — the process exits 0 on Active, 1 on failure |
 | [basic_environment](./basic_environment) | `azure` | **Environment management**: builds a management + operational Environment (cloud agent, secret, CI/CD profile) and deploys it with `cloud.environments.deploy(...)`, then deploys a LiveSystem into the operational env |
@@ -90,6 +92,21 @@ Each entrypoint ends with the same two calls — a Blueprint and a LiveSystem ar
 await cloud.blueprints.create(fractal);              // abstract Component contracts
 await cloud.liveSystems.deploy(liveSystem, {mode});  // offer-resolved
 ```
+
+### A Fractal locks only what its offers enforce
+
+Building a LiveSystem refuses a guardrail the selected offer cannot enforce,
+naming the offer, the parameter and the component. A guardrail nobody enforces
+would only look like governance, so each Fractal locks only what its target's
+offers honor:
+
+- A guardrail no target honors is not set (e.g. the gateway settings in
+  `basic_api_management`, telemetry retention in `basic_observability`).
+- A guardrail some targets honor is passed in a `Posture` to
+  `authorFractal(posture)`, and each posture is a Fractal of its own id: one
+  blueprint id never stands for two sets of guardrails. See the `Posture` type
+  in `app_with_identity`, `basic_iaas`, `basic_container_platform`,
+  `basic_big_data`, `basic_messaging` and `basic_storage`.
 
 ## Running a sample
 

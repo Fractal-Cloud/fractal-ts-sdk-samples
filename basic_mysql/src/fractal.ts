@@ -32,7 +32,7 @@ const boundedContextId = {
 export function authorFractal() {
   return createFractal({
     id: 'basic-mysql',
-    version: {major: 1, minor: 0, patch: 0},
+    version: {major: 1, minor: 1, patch: 0},
     description: 'Governed MySQL: one relational database engine.',
     boundedContextId,
     blueprint: bp => {
@@ -42,15 +42,16 @@ export function authorFractal() {
       // whichever runs second cannot get it. `storage-dbms` belongs to
       // basic_storage and `app-dbms` to app_with_identity; keep this distinct
       // from both, and from every other sample's.
+      //
+      // Storage is the one guardrail the Cloud SQL for MySQL agent enforces.
+      // It declares no availability, backup retention or engine version, and
+      // building a LiveSystem refuses a guardrail its offer cannot enforce, so
+      // none of those is set.
       const dbms = bp.add(
         RelationalDbms({
           id: 'mysql-dbms',
           displayName: 'Application MySQL Engine',
-        })
-          .withHighAvailability('zone-redundant') // guardrail
-          .withBackupRetentionDays(30) // guardrail
-          .withStorageGb(100) // guardrail
-          .withEngineVersion('8.4'), // guardrail: infra param, not app's choice
+        }).withStorageGb(100), // guardrail
       );
 
       return {dbms};

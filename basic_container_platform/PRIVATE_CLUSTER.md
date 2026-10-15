@@ -133,12 +133,13 @@ resolves a VNet dependency (directly, or one hop through a Subnet) and reads no
 NSG. So authorizing 443 towards the control plane is not expressible either, and
 is listed below as your work.
 
-The only DNS surface in this SDK is zone *registration*: `withDnsZones` on an
-Environment — a control-plane resource, not part of any blueprint — taking
-`{name, dnsZoneType?}`. There is no component-level DNS surface at all: no export
-matches `/dns/i`, and `DnsZone` carries no record field. Registering a zone does
-not associate a cloud-generated private zone — the one holding your API server's
-hostname — with another network, which is what the resolution half needs.
+The SDK's DNS surface is zone *registration* and record access. `withDnsZones` on
+an Environment — a control-plane resource, not part of any blueprint — registers
+a zone (`{name, dnsZoneType?, componentAccess?}`). `withDnsZones` on an
+`ApiGateway`, `Workload` or `EmailSender` component asks for read or write access
+to records in such a zone. Neither associates a cloud-generated private zone —
+the one holding your API server's hostname — with another network, which is
+what the resolution half needs, and no cluster component asks for DNS access.
 
 So the rest of this page is a **manual, out-of-band procedure in your own cloud
 account**. That is the honest shape of it today; if the atoms arrive, this page

@@ -37,7 +37,11 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'app-with-identity-aks',
+    lockClusterVersion: false,
+    lockDatabaseCollation: true,
+  });
   const liveSystem = fractal
     .specialize()
     // Application-level operations: name the user directory, then add a stateful
@@ -63,7 +67,7 @@ async function main() {
           tenantName: 'acmeexternal',
           resourceGroup: 'rg-identity',
         }),
-        'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-data'}),
+        'app-dbms': AzurePostgresDbms({}),
       },
     });
 

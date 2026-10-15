@@ -76,11 +76,9 @@ const cloud = createFractalCloudClient(credentials);
 
 // ── Operational environment: 'prod' — where LiveSystems land. ──
 // It picks an Azure subscription; a default CI/CD deploy key and a secret are
-// attached to show the full surface (both are optional).
-let prod = OperationalEnvironment({
-  shortName: 'prod',
-  resourceGroups: [`Personal/${OWNER_ID}/prod-rg`],
-}).withAzureSubscription({
+// attached to show the full surface (both are optional). Its resource group is
+// added in main(), once the Bounded Context behind it exists.
+let prod = OperationalEnvironment({shortName: 'prod'}).withAzureSubscription({
   region: 'westeurope',
   subscriptionId: process.env['AZURE_OPERATIONAL_SUBSCRIPTION_ID'] ?? '',
 });
@@ -150,17 +148,21 @@ if (dbPassword) {
 
 // ── Management environment: owns the cloud agent + the operational env. ──
 // The cloud AGENT carries the full identity (tenant + a management subscription);
-// the operational env's tenant is inherited from it at deploy time.
-const management = ManagementEnvironment({
-  id: {type: 'Personal', ownerId: OWNER_ID, shortName: 'mgmt'},
-  resourceGroups: [`Personal/${OWNER_ID}/mgmt-rg`],
-})
-  .withAzureCloudAgent({
-    region: 'westeurope',
-    tenantId: process.env['AZURE_TENANT_ID'] ?? '',
-    subscriptionId: process.env['AZURE_MANAGEMENT_SUBSCRIPTION_ID'] ?? '',
+// the operational env's tenant is inherited from it at deploy time. Each env
+// groups its resources in a Bounded Context, named by its qualified id
+// (`Personal/<owner>/<shortName>`); main() creates both before the deploy.
+function managementEnvironment(rg: {mgmt: string; prod: string}) {
+  return ManagementEnvironment({
+    id: {type: 'Personal', ownerId: OWNER_ID, shortName: 'mgmt'},
+    resourceGroups: [rg.mgmt],
   })
-  .withOperationalEnvironments([prod]);
+    .withAzureCloudAgent({
+      region: 'westeurope',
+      tenantId: process.env['AZURE_TENANT_ID'] ?? '',
+      subscriptionId: process.env['AZURE_MANAGEMENT_SUBSCRIPTION_ID'] ?? '',
+    })
+    .withOperationalEnvironments([prod.withResourceGroup(rg.prod)]);
+}
 
 // Mint a short-lived federated token for Azure workload-identity federation.
 // In GitHub Actions with `permissions: id-token: write`, the runner exposes an
@@ -191,6 +193,26 @@ async function fetchAzureFederatedToken(): Promise<string> {
 }
 
 async function main() {
+  // 0. Create the Bounded Contexts the environments group their resources in.
+  //    An environment refers to them, so they exist first. `create` is an
+  //    upsert: re-running the sample leaves them as they are.
+  const [mgmtRg, prodRg] = await Promise.all([
+    cloud.boundedContexts.create({
+      type: 'Personal',
+      shortName: 'mgmt-rg',
+      displayName: 'Management environment resources',
+    }),
+    cloud.boundedContexts.create({
+      type: 'Personal',
+      shortName: 'prod-rg',
+      displayName: 'Production environment resources',
+    }),
+  ]);
+  const management = managementEnvironment({
+    mgmt: mgmtRg.qualifiedId,
+    prod: prodRg.qualifiedId,
+  });
+
   // 1. Deploy the environment tree: create/update mgmt + operational envs, push
   //    secrets + CI/CD profiles, initialize cloud agents. `agentInit: 'wait'`
   //    blocks until each cloud-agent initialization completes (poll + step log),

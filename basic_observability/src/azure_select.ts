@@ -51,9 +51,7 @@ const gatewayConfig = {
  *   so the smallest explicit size is larger than any node this sample's
  *   cluster gets. 0 leaves the pod to the ECK operator's own defaults.
  *
- * Declared as a value rather than inline: the SDK's offer config models only
- * `namespace` and `elasticVersion`, and TypeScript rejects the other keys as
- * excess properties on an object literal.
+ * Exported so the tests check the same settings azure.ts deploys.
  */
 export const loggingConfig = {
   namespace: 'logging',

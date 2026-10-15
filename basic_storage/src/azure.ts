@@ -32,7 +32,13 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'basic-storage-azure',
+    lockVersioning: false,
+    lockRetention: false,
+    lockStorageClass: false,
+    lockDbmsSizing: true,
+  });
   const liveSystem = fractal
     .specialize()
     // Application-level operations: the app declares its folders + databases.
@@ -44,7 +50,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: one Azure offer per component. ──
       select: {
         acmestorageuploads: AzureBlob({sku: 'Standard_LRS'}),
-        'storage-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}),
+        'storage-dbms': AzurePostgresDbms({}),
       },
     });
 

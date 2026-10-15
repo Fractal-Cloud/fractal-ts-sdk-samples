@@ -43,21 +43,40 @@ const boundedContextId = {
 };
 
 /**
+ * The guardrails that depend on the target's offers. Building a LiveSystem
+ * refuses a guardrail its selected offer cannot enforce, so the architect locks
+ * only what the target honors. A posture is its own Fractal (its own id): one
+ * blueprint id must not stand for two different sets of guardrails.
+ */
+export type Posture = {
+  /** The Fractal id of this posture. */
+  id: string;
+  /**
+   * Lock the network's address space. A custom-mode GCP VPC has none (its
+   * subnets carry the ranges), so the GCP posture leaves it unset.
+   */
+  lockNetworkCidr: boolean;
+};
+
+/**
  * Author the "governed container platform" Fractal. Returns a reusable,
  * immutable Fractal: `.specialize()` never mutates it, so it is safe to author
  * once and instantiate many times (see <cloud>.ts).
  */
-export function authorFractal() {
+export function authorFractal(
+  posture: Posture = {id: 'basic-container-platform', lockNetworkCidr: true},
+) {
   return createFractal({
-    id: 'basic-container-platform',
-    version: {major: 1, minor: 0, patch: 0},
+    id: posture.id,
+    version: {major: 1, minor: 1, patch: 0},
     description:
       'Governed container platform: a network, a managed cluster, a web + ' +
       'api workload pair on the vendor container service, and a third ' +
       'workload running inside the cluster itself.',
     boundedContextId,
     blueprint: bp => {
-      // ── Network — the VPC's address space is a governed guardrail. ──
+      // ── Network — the VPC's address space is a governed guardrail wherever
+      //    the network offer has one (see Posture). ──
       // Two things are locked down here, for two different reasons.
       //
       // The id is NOT cosmetic: the AWS agent names the VPC after the component
@@ -71,11 +90,14 @@ export function authorFractal() {
       // and the old hard-coded 10.0.0.0/16 with a 10.0.1.0/24 subnet collided
       // with them. Each sample owns one /16 from 10.180.0.0/16 up and keeps its
       // subnets inside it. Do not tidy either back to a generic value.
+      const vnet = VirtualNetwork({
+        id: 'acme-container-platform-network',
+        displayName: 'Main Network',
+      });
       const network = bp.add(
-        VirtualNetwork({
-          id: 'acme-container-platform-network',
-          displayName: 'Main Network',
-        }).withCidrBlock('10.181.0.0/16'), // guardrail
+        posture.lockNetworkCidr
+          ? vnet.withCidrBlock('10.181.0.0/16') // guardrail
+          : vnet,
       );
       const subnet = bp.add(
         Subnet({id: 'private-subnet', displayName: 'Private Subnet'})

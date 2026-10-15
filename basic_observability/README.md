@@ -12,9 +12,8 @@ Subnet            (platform-subnet)           — 10.183.1.0/24
 ContainerPlatform (platform-cluster)          — one autoscaling system pool (2–4 nodes)
 ApiGateway        (platform-gateway)          — in-cluster gateway, own namespace
 Monitoring        (monitoring)                — Prometheus + Grafana + Alertmanager
-                                                (retention: 30 days, scrape interval: 15 s)
-Tracing           (tracing)                   — Jaeger  (retention: 7 days, sampling rate: 10 %)
-Logging           (logging)                   — Elastic + Kibana + fluentd (retention: 30 days)
+Tracing           (tracing)                   — Jaeger
+Logging           (logging)                   — Elastic + Kibana + fluentd
 ```
 
 ## Why an API gateway is part of the sample
@@ -32,8 +31,7 @@ Both paths are guarded by the gateway component's type ending in `Ambassador`, s
 src/
   fractal.ts   # Architect layer: vendor-agnostic blueprint — network, subnet, cluster,
                #   gateway, Monitoring, Tracing, Logging.
-               #   Guardrails locked here: cidrBlock, nodePools, retentionDays,
-               #   scrapeInterval, samplingRate.
+               #   Guardrails locked here: cidrBlock, nodePools.
                #   Structure locked here: every CaaS capability depends on the cluster
                #   (that edge is how the agent resolves which cluster to install on)
                #   and links to the gateway.
@@ -55,7 +53,9 @@ src/
 | `Tracing` | `tracing` | `Jaeger({namespace: 'tracing'})` |
 | `Logging` | `logging` | `ObservabilityElastic({namespace: 'logging', elasticVersion: '8.5.3', elasticInstances: 1, storage: '10Gi', …})` |
 
-Architect guardrails (retention, scrape interval, sampling rate, CIDRs, node pools) are locked in `fractal.ts`. There are no dev-open operations — the stack is fully governed.
+Architect guardrails (CIDRs, node pools) are locked in `fractal.ts`. There are no dev-open operations — the stack is fully governed.
+
+Retention, scrape interval and sampling rate are not guardrails: the self-hosted Prometheus, Jaeger and Elastic offers set none of them (Jaeger's sampling is decided by the instrumented applications), and building a LiveSystem refuses a guardrail its offer cannot enforce.
 
 ### The Elastic stack's settings
 

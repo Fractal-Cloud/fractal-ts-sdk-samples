@@ -25,28 +25,17 @@ const cloud = createFractalCloudClient(credentials);
 
 async function main() {
   const fractal = authorFractal();
-  const liveSystem = fractal
-    .specialize()
-    // Application-level operations: the app declares the routes it exposes. The
-    // architect's security guardrails (httpsOnly / rateLimit / cors) are locked
-    // and untouchable here.
-    .withRoute({
-      path: '/orders',
-      methods: ['GET', 'POST'],
-      upstream: 'orders-svc',
-    })
-    .withRoute({path: '/users', methods: ['GET'], upstream: 'users-svc'})
-    .toLiveSystem({
-      name: 'basic-api-management',
-      environment,
-      // ── The ONLY cloud-specific lines: one offer per component. ──
-      select: {
-        'acme-apim-gateway': AzureApiManagement({
-          publisherEmail: 'ops@acme.com',
-          sku: 'Developer',
-        }),
-      },
-    });
+  const liveSystem = fractal.specialize().toLiveSystem({
+    name: 'basic-api-management',
+    environment,
+    // ── The ONLY cloud-specific lines: one offer per component. ──
+    select: {
+      'acme-apim-gateway': AzureApiManagement({
+        publisherEmail: 'ops@acme.com',
+        skuName: 'Developer_1',
+      }),
+    },
+  });
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +

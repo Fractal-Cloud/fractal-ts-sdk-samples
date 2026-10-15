@@ -23,27 +23,42 @@ const credentials = {
 
 const cloud = createFractalCloudClient(credentials);
 
+// GCP API Gateway serves an API config, the OpenAPI 2.0 document of the API.
+// The agent requires it; the routes the gateway serves are the paths below.
+const apiConfig = `swagger: '2.0'
+info:
+  title: basic-api-management
+  version: 1.0.0
+paths:
+  /orders:
+    get:
+      operationId: listOrders
+      responses:
+        '200':
+          description: OK
+    post:
+      operationId: createOrder
+      responses:
+        '200':
+          description: OK
+  /users:
+    get:
+      operationId: listUsers
+      responses:
+        '200':
+          description: OK
+`;
+
 async function main() {
   const fractal = authorFractal();
-  const liveSystem = fractal
-    .specialize()
-    // Application-level operations: the app declares the routes it exposes. The
-    // architect's security guardrails (httpsOnly / rateLimit / cors) are locked
-    // and untouchable here.
-    .withRoute({
-      path: '/orders',
-      methods: ['GET', 'POST'],
-      upstream: 'orders-svc',
-    })
-    .withRoute({path: '/users', methods: ['GET'], upstream: 'users-svc'})
-    .toLiveSystem({
-      name: 'basic-api-management',
-      environment,
-      // ── The ONLY cloud-specific lines: one offer per component. ──
-      select: {
-        'acme-apim-gateway': GcpApiGateway({}),
-      },
-    });
+  const liveSystem = fractal.specialize().toLiveSystem({
+    name: 'basic-api-management',
+    environment,
+    // ── The ONLY cloud-specific lines: one offer per component. ──
+    select: {
+      'acme-apim-gateway': GcpApiGateway({apiConfig}),
+    },
+  });
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +

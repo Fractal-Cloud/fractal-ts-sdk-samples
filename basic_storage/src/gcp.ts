@@ -28,7 +28,13 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'basic-storage-gcp',
+    lockVersioning: true,
+    lockRetention: false,
+    lockStorageClass: true,
+    lockDbmsSizing: false,
+  });
   const liveSystem = fractal
     .specialize()
     // Application-level operations: the app declares its folders + databases.
@@ -40,7 +46,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: one GCP offer per component. ──
       select: {
         acmestorageuploads: GcsBucket({region: 'EU'}),
-        'storage-dbms': GcpPostgresDbms({tier: 'db-custom-2-7680'}),
+        'storage-dbms': GcpPostgresDbms({}),
       },
     });
 

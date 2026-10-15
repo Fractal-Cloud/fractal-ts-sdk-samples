@@ -30,7 +30,13 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'basic-storage-mixed',
+    lockVersioning: true,
+    lockRetention: true,
+    lockStorageClass: false,
+    lockDbmsSizing: true,
+  });
   const liveSystem = fractal
     .specialize()
     // Application-level operations: the app declares its folders + databases.
@@ -42,7 +48,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: mix vendors per component. ──
       select: {
         acmestorageuploads: AwsS3({region: 'us-east-1'}), // AWS object storage…
-        'storage-dbms': AzurePostgresDbms({resourceGroup: 'rg-storage'}), // …+ Azure DB
+        'storage-dbms': AzurePostgresDbms({}), // …+ Azure DB
       },
     });
 

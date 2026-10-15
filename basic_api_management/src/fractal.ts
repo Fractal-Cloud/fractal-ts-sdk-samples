@@ -7,37 +7,17 @@
  * gateway vendor to the catalogue tomorrow and this Fractal supports it
  * unchanged.
  *
- * This sample is the CLEAREST illustration of the GUARDRAILS vs OPERATIONS
- * distinction, because both live on the SAME component:
- *
- *   - GUARDRAILS — the architect calls `.withXxx()` at design time. The value is
- *     LOCKED governance: a consuming dev cannot override it. These are
- *     INFRA/SECURITY parameters of the gateway itself — whether it is
- *     HTTPS-only, its global rate limit, its CORS allow-list. They describe how
- *     the gateway is *governed*, not what the app exposes through it.
- *   - OPERATIONS — the typed Interface a consuming dev uses. Here there is ONE,
- *     and it is purely APPLICATION-level: `withRoute(r)` lets the app declare a
- *     route it exposes (path → upstream). The app owns its routes; the architect
- *     owns the security posture. A route is app intent, never an infra knob.
- *
- * The split in one line: httpsOnly / rateLimit / cors are GUARDRAILS (locked by
- * the architect); routes are the APP's (declared via the withRoute operation).
+ * It sets NO guardrail and NO operation. The gateway settings the SDK offers
+ * (`withHttpsOnly`, `withRateLimit`, `withCors`, a `routes` list) are honored by
+ * none of the gateway offers this sample targets — CloudFront, API Management
+ * and GCP API Gateway — and building a LiveSystem refuses a setting its offer
+ * cannot enforce. A guardrail nobody enforces would only look like governance,
+ * so the Fractal locks nothing it cannot keep. What each gateway serves is the
+ * offer's: on GCP the routes are the `apiConfig` OpenAPI document (gcp.ts).
  *
  * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
 import {createFractal, ApiGateway} from '@fractal_cloud/sdk/model';
-
-/**
- * A single route the application exposes through the gateway. This is the
- * app-level vocabulary of the operation — `path` and (optionally) the HTTP
- * `methods` and the `upstream` service the gateway forwards to. No vendor or
- * infra knobs appear here: those are guardrails, set by the architect.
- */
-export type Route = {
-  path: string;
-  methods?: string[];
-  upstream?: string;
-};
 
 const boundedContextId = {
   ownerType: 'Personal',
@@ -46,21 +26,17 @@ const boundedContextId = {
 };
 
 /**
- * Author the "governed API gateway" Fractal. Returns a reusable, immutable
+ * Author the API gateway Fractal. Returns a reusable, immutable
  * Fractal: `.specialize()` never mutates it, so it is safe to author once and
  * instantiate many times (see <cloud>.ts).
  */
 export function authorFractal() {
   return createFractal({
     id: 'basic-api-management',
-    version: {major: 1, minor: 0, patch: 0},
-    description: 'Governed API gateway: HTTPS-only, rate-limited, CORS-locked.',
+    version: {major: 2, minor: 0, patch: 0},
+    description: 'An API gateway, vendor-agnostic.',
     boundedContextId,
     blueprint: bp => {
-      // ── API gateway — its SECURITY POSTURE is governed by the architect.
-      //    These three guardrails are LOCKED: a consuming dev specializing this
-      //    Fractal cannot weaken them. They are infra/security PARAMETERS of the
-      //    gateway, not anything the application gets to decide. ──
       // The component id is NOT cosmetic on every cloud: the Azure agent names
       // the API Management service after it, and an APIM service name is a
       // GLOBAL DNS label ({name}.azure-api.net). A generic id such as
@@ -74,23 +50,10 @@ export function authorFractal() {
       // itself for two days after every run. Renaming sidesteps the currently
       // held name; the recurrence is only fixed by purging on teardown.
       const gateway = bp.add(
-        ApiGateway({id: 'acme-apim-gateway', displayName: 'API Gateway'})
-          .withHttpsOnly(true) // guardrail: never serve plain HTTP
-          .withRateLimit({requestsPerSecond: 1000}) // guardrail: global throttle
-          .withCors({allowOrigins: ['https://acme.com']}), // guardrail: CORS allow-list
+        ApiGateway({id: 'acme-apim-gateway', displayName: 'API Gateway'}),
       );
 
       return {gateway};
     },
-
-    // ── OPERATIONS — application-level verbs only. The single op here is
-    //    `withRoute`: the APP declares a route it exposes (path → upstream). It
-    //    appends to the gateway's `routes` list — each call adds one route. This
-    //    is the canonical app-level operation: routes are the app's intent, in
-    //    contrast to the architect's locked security guardrails above. ──
-    operations: s => ({
-      /** Expose one application route through the gateway (path → upstream). */
-      withRoute: (r: Route) => s.gateway.append('routes', r),
-    }),
   });
 }
