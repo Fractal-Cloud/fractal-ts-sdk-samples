@@ -281,7 +281,7 @@ if [[ -f .env ]]; then
 fi
 
 # --- validate configuration -------------------------------------------------
-REQUIRED=(SERVICE_ACCOUNT_ID SERVICE_ACCOUNT_SECRET OWNER_ID)
+REQUIRED=(SERVICE_ACCOUNT_ID SERVICE_ACCOUNT_SECRET OWNER_ID LB_POOL_ADDRESSES)
 
 missing=()
 for v in "${REQUIRED[@]}"; do

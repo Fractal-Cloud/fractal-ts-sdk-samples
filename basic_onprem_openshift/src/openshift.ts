@@ -8,6 +8,7 @@ import {fatal} from './fatal';
 import {authorFractal} from './fractal';
 import {
   createFractalCloudClient,
+  OpenshiftIpAddressPool,
   OpenshiftPersistentVolume,
   OpenshiftSecurityGroup,
   OpenshiftService,
@@ -20,6 +21,13 @@ const environment = {
   ownerId: process.env['OWNER_ID'] ?? '',
   name: process.env['ENVIRONMENT_NAME'] ?? 'dev',
 };
+// The addresses the web load balancer takes its address from: CIDRs or ranges
+// in the subnet of the nodes (or VLAN) MetalLB announces them on, e.g.
+// 192.168.10.240/28 or 192.168.10.240-192.168.10.250, comma-separated.
+const lbPoolAddresses = (process.env['LB_POOL_ADDRESSES'] ?? '')
+  .split(',')
+  .map(a => a.trim())
+  .filter(a => a !== '');
 const credentials = {
   clientId: process.env['SERVICE_ACCOUNT_ID']!,
   clientSecret: process.env['SERVICE_ACCOUNT_SECRET']!,
@@ -28,6 +36,12 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
+  if (lbPoolAddresses.length === 0) {
+    throw new Error(
+      'LB_POOL_ADDRESSES is not set: name the addresses (CIDRs or ranges) the ' +
+        'web load balancer may take its address from.',
+    );
+  }
   const fractal = authorFractal();
   const liveSystem = fractal
     .specialize()
@@ -44,9 +58,23 @@ async function main() {
         }),
         'api-workload': OpenshiftWorkload({namespace: 'apps'}),
         'web-workload': OpenshiftWorkload({namespace: 'apps'}),
-        'web-service': OpenshiftService({}),
-        'app-storage': OpenshiftPersistentVolume({storageSize: '10Gi'}),
-        'legacy-vm': OpenshiftVm({}),
+        'web-lb-subnet': OpenshiftIpAddressPool({
+          name: 'web-lb',
+          addresses: lbPoolAddresses,
+        }),
+        'web-service': OpenshiftService({
+          serviceType: 'LoadBalancer',
+          port: 80,
+          targetPort: 80,
+        }),
+        'app-storage': OpenshiftPersistentVolume({
+          name: 'app-storage',
+          storageSize: '10Gi',
+        }),
+        'legacy-vm': OpenshiftVm({
+          name: 'legacy-vm',
+          image: 'quay.io/containerdisks/fedora:40',
+        }),
       },
     });
   const bc = liveSystem.boundedContext;

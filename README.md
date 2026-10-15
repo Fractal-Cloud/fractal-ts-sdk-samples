@@ -55,7 +55,7 @@ responsibility**, not a difference in capability — both can run a private clus
 | [basic_environment](./basic_environment) | `azure` | **Environment management**: builds a management + operational Environment (cloud agent, secret, CI/CD profile) and deploys it with `cloud.environments.deploy(...)`, then deploys a LiveSystem into the operational env |
 | [basic_observability](./basic_observability) | `caas` | Monitoring + Tracing + Logging, self-hosted (Prometheus + Jaeger + Elastic) |
 | [basic_onprem_vmware](./basic_onprem_vmware) | `vmware` | vSphere distributed port group + VLAN segment + two VMs |
-| [basic_onprem_openshift](./basic_onprem_openshift) | `openshift` | NetworkPolicy + two Workloads + Service/Route + PersistentVolume + KubeVirt VM |
+| [basic_onprem_openshift](./basic_onprem_openshift) | `openshift` | NetworkPolicy + two Workloads + LoadBalancer Service + MetalLB IP address pool + PersistentVolume + KubeVirt VM |
 
 ## Architecture
 
@@ -226,6 +226,6 @@ Extra provider variables: `OCI_COMPARTMENT_ID` (`basic_iaas` on OCI);
 | `basic_environment` | — | Cloud agent + Blob | — | — | — | — | — | — |
 | `basic_observability` | — | — | — | — | — | Prometheus + Jaeger + Elastic | — | — |
 | `basic_onprem_vmware` | — | — | — | — | — | — | PortGroup + VLAN + VMs | — |
-| `basic_onprem_openshift` | — | — | — | — | — | — | — | Workloads + Service + NetworkPolicy + PV + VM |
+| `basic_onprem_openshift` | — | — | — | — | — | — | — | Workloads + Service + IP address pool + NetworkPolicy + PV + VM |
 
 See each sample's `README.md` for the full list of environment variables per provider.
