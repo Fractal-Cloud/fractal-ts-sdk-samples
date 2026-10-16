@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — basic_observability: Monitoring + Tracing + Logging, self-hosted,
+# deploy.sh — basic_observability: Monitoring + Tracing, self-hosted,
 # on a managed cluster behind an API gateway
 #
 #   ./deploy.sh              build and deploy the default target (azure)

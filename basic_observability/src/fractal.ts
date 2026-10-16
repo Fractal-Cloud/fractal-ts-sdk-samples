@@ -3,7 +3,7 @@
  *
  * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
  * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .ContainerPlatform,
- * APIManagement.ApiGateway and Observability.Monitoring, .Tracing, .Logging).
+ * APIManagement.ApiGateway and Observability.Monitoring, .Tracing).
  * It NEVER names a vendor or an offer — those are chosen later, per component,
  * when a LiveSystem is built (see <cloud>.ts).
  *
@@ -21,12 +21,12 @@
  *
  * STRUCTURE (deps + links) is owned entirely by the blueprint:
  *   - Subnet depends on the VirtualNetwork; the cluster depends on the Subnet.
- *   - Monitoring, Tracing, Logging and the ApiGateway each depend on the CLUSTER.
+ *   - Monitoring, Tracing and the ApiGateway each depend on the CLUSTER.
  *     These are self-hosted (CaaS) capabilities: they are Kubernetes workloads,
  *     and the agent resolves WHICH cluster to install them on from this
  *     dependency edge. Without it the component has no target and never starts.
  *   - Each observability capability LINKS to the gateway. The gateway is how
- *     Grafana / Prometheus / Alertmanager / Kibana are published — on the
+ *     Grafana / Prometheus / Alertmanager are published — on the
  *     gateway's host, behind its routes, instead of on public load balancers of
  *     their own.
  *
@@ -42,7 +42,6 @@ import {
   ApiGateway,
   Monitoring,
   Tracing,
-  Logging,
 } from '@fractal_cloud/sdk/model';
 
 const boundedContextId = {
@@ -78,8 +77,8 @@ export function authorFractal() {
     id: 'basic-observability',
     version: {major: 1, minor: 0, patch: 0},
     description:
-      'Governed observability: metrics monitoring + distributed tracing + ' +
-      'logging, on a managed cluster, published through an API gateway.',
+      'Governed observability: metrics monitoring + distributed tracing, ' +
+      'on a managed cluster, published through an API gateway.',
     boundedContextId,
     blueprint: bp => {
       // ── Network — the VPC's address space is a governed guardrail. ──
@@ -163,24 +162,13 @@ export function authorFractal() {
         ),
       );
 
-      // ── Logging — retention is governed. ──
-      const logging = bp.add(
-        dependingOn(
-          Logging({id: 'logging', displayName: 'Logging'}).withRetentionDays(
-            30,
-          ), // guardrail
-          cluster,
-        ),
-      );
-
       // ── Links (structure) — each capability is published through the gateway,
       //    which is what keeps its console off a public load balancer of its
       //    own. Architect-owned. ──
       bp.link(monitoring, gateway);
       bp.link(tracing, gateway);
-      bp.link(logging, gateway);
 
-      return {network, subnet, cluster, gateway, monitoring, tracing, logging};
+      return {network, subnet, cluster, gateway, monitoring, tracing};
     },
 
     // No `operations`: this is platform observability. The architect's
