@@ -6,7 +6,8 @@
     "rootDir": ".",
     "outDir": "build",
     "declaration": false,
-    "composite": false
+    "composite": false,
+    "noUnusedLocals": true
   },
   "include": [
     "src/**/*.ts"

@@ -3,7 +3,7 @@
  *
  * caas-k8s is the only agent that installs an Ambassador gateway, and it fails
  * one it cannot serve with the reason (AmbassadorHandler.UnservedReason):
- * a Host, license or DNS parameter, a link from the gateway, or anything but
+ * a Host or DNS parameter, a link from the gateway, or anything but
  * exactly one cluster it reaches. Re-adding any of those would turn the
  * sample's gateway, and every console published through it, Failed. This test
  * builds the LiveSystem exactly as azure.ts does and checks that shape.
@@ -15,12 +15,11 @@ import assert from 'node:assert/strict';
 import {authorFractal} from './fractal';
 import {azureSelect} from './azure_select';
 
-// Ambassador Edge Stack features caas-k8s does not serve.
+// Gateway parameters caas-k8s does not serve.
 const unservedParameters = [
   'hostOwnerEmail',
   'acmeProviderAuthority',
   'tlsSecretName',
-  'licenseKey',
   'dnsZoneConfig',
 ];
 
