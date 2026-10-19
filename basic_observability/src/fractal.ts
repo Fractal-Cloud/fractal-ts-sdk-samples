@@ -3,7 +3,8 @@
  *
  * This is a vendor-AGNOSTIC Fractal: the blueprint references only abstract
  * Components (NetworkAndCompute.VirtualNetwork, .Subnet, .ContainerPlatform,
- * APIManagement.ApiGateway and Observability.Monitoring, .Tracing, .Logging).
+ * APIManagement.ApiGateway, Observability.Monitoring, .Tracing and
+ * Storage.Search).
  * It NEVER names a vendor or an offer — those are chosen later, per component,
  * when a LiveSystem is built (see <cloud>.ts).
  *
@@ -19,20 +20,23 @@
  * to expose, so this Fractal OMITS `operations` entirely.
  *
  * Retention, scrape interval and sampling rate are NOT guardrails here: the
- * self-hosted Prometheus, Jaeger and Elastic offers set none of them (Jaeger's
- * sampling is decided by the instrumented applications), and building a
- * LiveSystem refuses a guardrail its offer cannot enforce.
+ * self-hosted Prometheus and Jaeger offers set none of them (Jaeger's sampling
+ * is decided by the instrumented applications), and building a LiveSystem
+ * refuses a guardrail its offer cannot enforce.
  *
  * STRUCTURE (deps + links) is owned entirely by the blueprint:
  *   - Subnet depends on the VirtualNetwork; the cluster depends on the Subnet.
- *   - Monitoring, Tracing, Logging and the ApiGateway each depend on the CLUSTER.
+ *   - Monitoring, Tracing, the Search trace store and the ApiGateway each
+ *     depend on the CLUSTER.
  *     These are self-hosted (CaaS) capabilities: they are Kubernetes workloads,
  *     and the agent resolves WHICH cluster to install them on from this
  *     dependency edge. Without it the component has no target and never starts.
  *   - Each observability capability LINKS to the gateway. The gateway is how
- *     Grafana / Prometheus / Alertmanager / Kibana are published — on the
+ *     Grafana / Prometheus / Alertmanager are published — on the
  *     gateway's host, behind its routes, instead of on public load balancers of
  *     their own.
+ *   - Tracing keeps its traces in the Search trace store: it depends on it and
+ *     links to it with read-write access to its own indices.
  *
  * Imported from the locked model surface: '@fractal_cloud/sdk/model'.
  */
@@ -46,7 +50,8 @@ import {
   ApiGateway,
   Monitoring,
   Tracing,
-  Logging,
+  Search,
+  searchLinkSettings,
 } from '@fractal_cloud/sdk/model';
 
 const boundedContextId = {
@@ -82,8 +87,8 @@ export function authorFractal() {
     id: 'basic-observability',
     version: {major: 1, minor: 1, patch: 0},
     description:
-      'Governed observability: metrics monitoring + distributed tracing + ' +
-      'logging, on a managed cluster, published through an API gateway.',
+      'Governed observability: metrics monitoring + distributed tracing, ' +
+      'on a managed cluster, published through an API gateway.',
     boundedContextId,
     blueprint: bp => {
       // ── Network — the VPC's address space is a governed guardrail. ──
@@ -147,18 +152,31 @@ export function authorFractal() {
         ),
       );
 
-      // ── Monitoring, tracing and logging — installed on the cluster. ──
+      // ── Monitoring and tracing — installed on the cluster. ──
       const monitoring = bp.add(
         dependingOn(
           Monitoring({id: 'monitoring', displayName: 'Monitoring'}),
           cluster,
         ),
       );
-      const tracing = bp.add(
-        dependingOn(Tracing({id: 'tracing', displayName: 'Tracing'}), cluster),
+
+      // ── The search cluster tracing keeps its traces in — installed on the
+      //    cluster too. Tracing depends on it and links to it: the link is how
+      //    the search component's agent makes tracing its own user, scoped to
+      //    tracing's indices, and hands it the credentials. ──
+      const traceStore = bp.add(
+        Search({id: 'trace-store', displayName: 'Trace Store'}).dependsOn(
+          cluster,
+        ),
       );
-      const logging = bp.add(
-        dependingOn(Logging({id: 'logging', displayName: 'Logging'}), cluster),
+      const tracing = bp.add(
+        dependingOn(
+          dependingOn(
+            Tracing({id: 'tracing', displayName: 'Tracing'}),
+            cluster,
+          ),
+          traceStore,
+        ),
       );
 
       // ── Links (structure) — each capability is published through the gateway,
@@ -166,9 +184,17 @@ export function authorFractal() {
       //    own. Architect-owned. ──
       bp.link(monitoring, gateway);
       bp.link(tracing, gateway);
-      bp.link(logging, gateway);
+      bp.link(tracing, traceStore, searchLinkSettings({access: 'read-write'}));
 
-      return {network, subnet, cluster, gateway, monitoring, tracing, logging};
+      return {
+        network,
+        subnet,
+        cluster,
+        gateway,
+        monitoring,
+        traceStore,
+        tracing,
+      };
     },
 
     // No `operations`: this is platform observability. The architect's

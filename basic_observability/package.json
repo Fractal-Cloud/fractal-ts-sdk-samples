@@ -1,7 +1,7 @@
 {
   "name": "basic-observability",
   "version": "0.0.1",
-  "description": "Fractal + CaaS Live System sample — basic Observability (Prometheus, Jaeger, Elastic)",
+  "description": "Fractal + CaaS Live System sample — basic Observability (Prometheus, Jaeger on OpenSearch)",
   "files": [
     "build/src"
   ],
@@ -23,7 +23,7 @@
     "typescript7": "npm:typescript@^7.0.2"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "2.12.0"
+    "@fractal_cloud/sdk": "^2.13.1"
   },
   "overrides": {
     "tmp": "^0.2.7"

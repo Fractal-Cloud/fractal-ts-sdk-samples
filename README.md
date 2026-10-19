@@ -8,9 +8,8 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 
 - Node.js 18+
 - A Fractal Cloud account with a service account
-- Every sample pins `"@fractal_cloud/sdk": "^2.13.1"` (except `basic_observability`,
-  held on `2.12.0` until SDK 2.14.0) and compiles with TypeScript 7: `npm run compile`
-  runs `node_modules/typescript7/bin/tsc`. `typescript` is the TypeScript 6 package
+- Every sample pins `"@fractal_cloud/sdk": "^2.13.1"` and compiles with TypeScript 7:
+  `npm run compile` runs `node_modules/typescript7/bin/tsc`. `typescript` is the TypeScript 6 package
   that `gts lint` runs on, as typescript-eslint does not support TypeScript 7 yet
 
 ## Two network modes, and the progression between them
@@ -54,7 +53,7 @@ responsibility**, not a difference in capability — both can run a private clus
 | [basic_gpu_inference](./basic_gpu_inference) | `gcp` (+ `destroy`) | GPU VM self-hosting vLLM (`Qwen2.5-32B-Instruct`) on an OpenAI-compatible port 8000 reachable only inside the VPC, plus a results bucket and an `Unmanaged` AI component. Also shows `liveSystems.outputs()` and `liveSystems.destroy()` |
 | [basic_cicd](./basic_cicd) | `aws` | The IaaS scaffold deployed from a **CI/CD pipeline** using `wait` mode — the process exits 0 on Active, 1 on failure |
 | [basic_environment](./basic_environment) | `azure` | **Environment management**: builds a management + operational Environment (cloud agent, secret, CI/CD profile) and deploys it with `cloud.environments.deploy(...)`, then deploys a LiveSystem into the operational env |
-| [basic_observability](./basic_observability) | `caas` | Monitoring + Tracing + Logging, self-hosted (Prometheus + Jaeger + Elastic) |
+| [basic_observability](./basic_observability) | `caas` | Monitoring + Tracing, self-hosted (Prometheus + Jaeger) |
 | [basic_onprem_vmware](./basic_onprem_vmware) | `vmware` | vSphere distributed port group + VLAN segment + two VMs |
 | [basic_onprem_openshift](./basic_onprem_openshift) | `openshift` | NetworkPolicy + two Workloads + LoadBalancer Service + MetalLB IP address pool + PersistentVolume + KubeVirt VM |
 
@@ -225,7 +224,7 @@ Extra provider variables: `OCI_COMPARTMENT_ID` (`basic_iaas` on OCI);
 | `basic_gpu_inference` | — | — | GCP GPU VM + GCS | — | — | — | — | — |
 | `basic_cicd` | EC2 | — | — | — | — | — | — | — |
 | `basic_environment` | — | Cloud agent + Blob | — | — | — | — | — | — |
-| `basic_observability` | — | — | — | — | — | Prometheus + Jaeger + Elastic | — | — |
+| `basic_observability` | — | — | — | — | — | Prometheus + Jaeger | — | — |
 | `basic_onprem_vmware` | — | — | — | — | — | — | PortGroup + VLAN + VMs | — |
 | `basic_onprem_openshift` | — | — | — | — | — | — | — | Workloads + Service + IP address pool + NetworkPolicy + PV + VM |
 
