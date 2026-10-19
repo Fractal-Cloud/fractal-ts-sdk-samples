@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "gts lint",
     "clean": "gts clean",
-    "compile": "tsc",
+    "compile": "node node_modules/typescript7/bin/tsc",
     "deploy": "npm run compile && node build/src/gcp.js",
     "destroy": "npm run compile && node build/src/destroy.js",
     "fix": "gts fix",

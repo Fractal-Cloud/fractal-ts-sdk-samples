@@ -8,9 +8,10 @@ Each sample is a standalone TypeScript project. It authors a **Fractal** (cloud-
 
 - Node.js 18+
 - A Fractal Cloud account with a service account
-- Every sample pins `"@fractal_cloud/sdk": "^2.13.0"` and compiles with TypeScript 7
-  (`typescript7`); `typescript` is the TypeScript 6 package that `gts lint` runs on,
-  as typescript-eslint does not support TypeScript 7 yet
+- Every sample pins `"@fractal_cloud/sdk": "^2.13.1"` (except `basic_observability`,
+  held on `2.12.0` until SDK 2.14.0) and compiles with TypeScript 7: `npm run compile`
+  runs `node_modules/typescript7/bin/tsc`. `typescript` is the TypeScript 6 package
+  that `gts lint` runs on, as typescript-eslint does not support TypeScript 7 yet
 
 ## Two network modes, and the progression between them
 

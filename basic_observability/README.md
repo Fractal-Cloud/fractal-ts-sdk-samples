@@ -4,6 +4,8 @@ Demonstrates a governed observability stack using the Fractal Cloud TypeScript S
 
 The observability capabilities themselves are **self-hosted (CaaS)** — Prometheus, Jaeger and Elastic are Kubernetes workloads and run the same way on any cluster. What is cloud-specific is the cluster they land on and the network it sits in. So the Fractal also declares the platform it observes: a network, a subnet, a managed cluster, and the API gateway every console is published behind.
 
+> **SDK version:** this sample is pinned to `@fractal_cloud/sdk` `2.12.0`, the last release it compiles with. SDK 2.13 removed the `ObservabilityElastic` offer it selects for logging; the sample moves to SDK 2.14.0, which brings Loki/Tempo on Azure Blob.
+
 ## What it provisions
 
 ```

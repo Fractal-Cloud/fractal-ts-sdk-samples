@@ -40,6 +40,20 @@ No posture locks a network policy provider: the EKS agent declares none for EKS
 Auto Mode. `azure.ts` does not call `withUserDirectory` either: Entra External ID
 names the tenant by the offer's `tenantName`.
 
+**Network isolation is the app team's job.** The SDK has no Kubernetes
+NetworkPolicy offer for EKS or AKS (only OpenShift's `OpenshiftSecurityGroup`),
+so this Fractal cannot isolate the
+`orders` workload. Nothing restricts pod-to-pod traffic until the app team applies
+Kubernetes `NetworkPolicy` objects to the workload's namespace themselves: a
+default-deny for ingress and egress, then allows for the traffic `orders` needs
+(its database, the identity provider, DNS and its ingress path), and make sure
+the cluster's network plugin enforces NetworkPolicy.
+
+**On Azure, account security is a gap, not a choice.** The Entra External ID agent
+sets neither a password policy nor a session duration, so `azure.ts` cannot lock
+them. Only MFA is governed there; password strength and session length are
+whatever the tenant's defaults are until the agent supports them.
+
 Availability is no guardrail on any target: RDS sets it with `multiAz` /
 `readerCount` and Azure PostgreSQL with `highAvailabilityMode`, in the offer
 config.
