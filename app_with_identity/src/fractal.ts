@@ -48,10 +48,16 @@ export type Posture = {
   /** The Fractal id of this posture. */
   id: string;
   /**
-   * Lock the cluster's Kubernetes version and network policy provider. EKS
-   * honors both; the AKS agent declares neither.
+   * Lock the cluster's Kubernetes version. EKS honors it; the AKS agent does
+   * not declare it. No cluster agent here declares a network policy provider
+   * (EKS Auto Mode has none to choose), so no posture locks one.
    */
   lockClusterVersion: boolean;
+  /**
+   * Lock the identity provider's password policy and session duration. Cognito
+   * honors both; the Entra External ID agent sets neither.
+   */
+  lockIdentityPolicy: boolean;
   /**
    * Lock each service database's charset and collation. Azure PostgreSQL
    * honors both; the RDS agent creates every database with its engine defaults.
@@ -70,8 +76,8 @@ export function authorFractal(posture: Posture) {
     boundedContextId,
     blueprint: bp => {
       // ── The "where" — the managed container platform workloads run on.
-      //    Cluster version and network policy are governed posture where the
-      //    target's cluster offer enforces them. ──
+      //    The cluster version is governed posture where the target's cluster
+      //    offer enforces it. ──
       const cluster = ContainerPlatform({
         id: 'app-platform',
         displayName: 'Application Platform',
@@ -82,7 +88,6 @@ export function authorFractal(posture: Posture) {
               // EKS versions are '<major>.<minor>'; the agent upgrades one
               // minor at a time and refuses a downgrade.
               .withKubernetesVersion('1.35') // guardrail
-              .withNetworkPolicyProvider('calico') // guardrail
           : cluster,
       );
 
@@ -101,15 +106,21 @@ export function authorFractal(posture: Posture) {
           .withEngineVersion('16'), // guardrail
       );
 
-      // ── Identity provider — account security is governed. Password policy,
-      //    mandatory MFA and session duration are locked posture; the app only
-      //    names its user directory (withUserDirectory operation). App clients
-      //    are provisioned per link, inside withStatefulService. ──
+      // ── Identity provider — account security is governed. Mandatory MFA is
+      //    locked posture everywhere; password policy and session duration
+      //    where the target's offer enforces them. The app only names its user
+      //    directory (withUserDirectory operation). App clients are provisioned
+      //    per link, inside withStatefulService. ──
+      const identity = IdentityProvider({
+        id: 'idp',
+        displayName: 'Identity Provider',
+      }).withMfaConfiguration('ON'); // guardrail
       const idp = bp.add(
-        IdentityProvider({id: 'idp', displayName: 'Identity Provider'})
-          .withPasswordPolicy({minLength: 12}) // guardrail
-          .withMfaConfiguration('ON') // guardrail
-          .withSessionDuration(3600), // guardrail
+        posture.lockIdentityPolicy
+          ? identity
+              .withPasswordPolicy({minLength: 12}) // guardrail
+              .withSessionDuration(3600) // guardrail
+          : identity,
       );
 
       return {platform, dbms, idp};

@@ -24,6 +24,9 @@
     "typescript7": "npm:typescript@^7.0.2"
   },
   "dependencies": {
-    "@fractal_cloud/sdk": "^2.13.0"
+    "@fractal_cloud/sdk": "^2.13.1"
+  },
+  "overrides": {
+    "tmp": "^0.2.7"
   }
 }

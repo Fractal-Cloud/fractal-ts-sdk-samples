@@ -43,6 +43,7 @@ async function main() {
     id: 'app-with-identity',
     lockClusterVersion: true,
     lockDatabaseCollation: true,
+    lockIdentityPolicy: true,
   });
   const liveSystem = fractal
     .specialize()

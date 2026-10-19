@@ -41,12 +41,13 @@ async function main() {
     id: 'app-with-identity-aks',
     lockClusterVersion: false,
     lockDatabaseCollation: true,
+    lockIdentityPolicy: false,
   });
   const liveSystem = fractal
     .specialize()
-    // Application-level operations: name the user directory, then add a stateful
-    // service (workload + its database + the links wiring them together).
-    .withUserDirectory('acme')
+    // Application-level operation: add a stateful service (workload + its
+    // database + the links wiring them together). No withUserDirectory here:
+    // Entra External ID names the tenant by the offer's tenantName instead.
     .withStatefulService({
       name: 'orders',
       // Fully-qualified public image: pulled as written on any cluster, with
@@ -63,10 +64,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: one Azure offer per component. ──
       select: {
         'app-platform': Aks({}),
-        idp: EntraExternalId({
-          tenantName: 'acmeexternal',
-          resourceGroup: 'rg-identity',
-        }),
+        idp: EntraExternalId({tenantName: 'acmeexternal'}),
         'app-dbms': AzurePostgresDbms({}),
       },
     });

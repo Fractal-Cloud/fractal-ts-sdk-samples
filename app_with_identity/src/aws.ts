@@ -47,6 +47,7 @@ async function main() {
     id: 'app-with-identity-eks-rds',
     lockClusterVersion: true,
     lockDatabaseCollation: false,
+    lockIdentityPolicy: true,
   });
   const liveSystem = fractal
     .specialize()

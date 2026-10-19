@@ -9,9 +9,9 @@ vendors within one LiveSystem.
 ## What it provisions
 
 ```
-ContainerPlatform (app-platform)          — managed Kubernetes (guardrails on EKS: k8s version, network policy)
+ContainerPlatform (app-platform)          — managed Kubernetes (guardrails on EKS: k8s version)
 RelationalDbms    (app-dbms)              — managed relational engine (guardrails: backups, storage, version)
-IdentityProvider  (idp)                   — OAuth pool/tenant (guardrails: MFA, password policy)
+IdentityProvider  (idp)                   — OAuth pool/tenant (guardrails: MFA; on Cognito also password policy, session duration)
 
 withStatefulService('orders') adds, in one governed verb:
   Workload            (orders)            — child of app-platform (your app image + resource/health guardrails)
@@ -30,11 +30,15 @@ Building a LiveSystem refuses a guardrail its selected offer cannot enforce, so
 the Fractal locks only what the target's offers honor. `authorFractal(posture)`
 takes the guardrails that differ, and each posture is its own Fractal id:
 
-| Entrypoint | Fractal id | Cluster version + network policy | Database charset + collation |
-|---|---|---|---|
-| `aws.ts` | `app-with-identity-eks-rds` | locked (EKS honors them) | not set (RDS creates databases with engine defaults) |
-| `azure.ts` | `app-with-identity-aks` | not set (the AKS agent declares neither) | locked |
-| `mixed.ts` | `app-with-identity` | locked | locked |
+| Entrypoint | Fractal id | Cluster version | Database charset + collation | Password policy + session duration |
+|---|---|---|---|---|
+| `aws.ts` | `app-with-identity-eks-rds` | locked (EKS honors it) | not set (RDS creates databases with engine defaults) | locked (Cognito honors them) |
+| `azure.ts` | `app-with-identity-aks` | not set (the AKS agent does not declare it) | locked | not set (the Entra External ID agent sets neither) |
+| `mixed.ts` | `app-with-identity` | locked | locked | locked |
+
+No posture locks a network policy provider: the EKS agent declares none for EKS
+Auto Mode. `azure.ts` does not call `withUserDirectory` either: Entra External ID
+names the tenant by the offer's `tenantName`.
 
 Availability is no guardrail on any target: RDS sets it with `multiAz` /
 `readerCount` and Azure PostgreSQL with `highAvailabilityMode`, in the offer
