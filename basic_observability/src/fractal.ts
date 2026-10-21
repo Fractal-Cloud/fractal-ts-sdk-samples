@@ -160,6 +160,7 @@ export function authorFractal() {
         ),
       );
 
+      // TODO: add Logging back (Loki); traces are already on OpenSearch (FRA-3400)
       // ── The search cluster tracing keeps its traces in — installed on the
       //    cluster too. Tracing depends on it and links to it: the link is how
       //    the search component's agent makes tracing its own user, scoped to
