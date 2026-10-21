@@ -153,6 +153,7 @@ export function authorFractal() {
         ),
       );
 
+      // TODO: add Logging back (Loki) and store Jaeger traces on OpenSearch (FRA-3400)
       // ── Tracing — retention is governed. ──
       const tracing = bp.add(
         dependingOn(
