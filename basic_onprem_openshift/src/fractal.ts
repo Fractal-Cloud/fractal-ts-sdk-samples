@@ -2,8 +2,9 @@
  * fractal.ts — the ARCHITECT (CCoE) authors this ONCE.
  *
  * This is a vendor-AGNOSTIC Fractal for an on-prem application: a network policy
- * (SecurityGroup), an API and a web Workload, a public service (LoadBalancer),
- * persistent storage (ObjectStorage), and a legacy VirtualMachine. The blueprint
+ * (SecurityGroup), an API and a web Workload, a public service (LoadBalancer)
+ * with the Subnet its address comes from, persistent storage (ObjectStorage),
+ * and a legacy VirtualMachine. The blueprint
  * references only abstract Components — it NEVER names a vendor or an offer. The
  * OpenShift (RedHat) offers are chosen later, per component, when a LiveSystem is
  * built (see openshift.ts). Add a new vendor to the catalogue tomorrow and this
@@ -30,6 +31,7 @@ import {
   LoadBalancer,
   ObjectStorage,
   SecurityGroup,
+  Subnet,
   VirtualMachine,
   Workload,
 } from '@fractal_cloud/sdk/model';
@@ -51,7 +53,7 @@ export function authorFractal() {
     version: {major: 1, minor: 0, patch: 0},
     description:
       'On-prem application: a network policy, API + web workloads, a public ' +
-      'service, persistent storage, and a legacy VM.',
+      'service and its subnet, persistent storage, and a legacy VM.',
     boundedContextId,
     blueprint: bp => {
       // ── Network policy — the architect governs its ingress posture. ──
@@ -74,13 +76,22 @@ export function authorFractal() {
         Workload({id: 'web-workload', displayName: 'Web Workload'}),
       );
 
-      // ── Public service + persistent storage + legacy VM. ──
+      // ── Public service + the subnet its address comes from. ──
+      //    A load balancer is placed only in the subnets it declares.
+      const lbSubnet = bp.add(
+        Subnet({id: 'web-lb-subnet', displayName: 'Web Load Balancer Subnet'}),
+      );
+      // It fronts the web workload: the Service selects that workload's pods
+      // and lands in its namespace.
       const lb = bp.add(
         LoadBalancer({
           id: 'web-service',
           displayName: 'Web Service Load Balancer',
-        }),
+          subnets: [lbSubnet],
+        }).dependsOn(web),
       );
+
+      // ── Persistent storage + legacy VM. ──
       const storage = bp.add(
         ObjectStorage({id: 'app-storage', displayName: 'Application Storage'}),
       );
@@ -95,7 +106,7 @@ export function authorFractal() {
       // The web workload may reach the API workload on 8080 (traffic rule).
       bp.link(web, api, {fromPort: 8080, toPort: 8080, protocol: 'tcp'});
 
-      return {sg, api, web, lb, storage, vm};
+      return {sg, api, web, lbSubnet, lb, storage, vm};
     },
 
     // ── OPERATIONS — application-level verbs only. What the APP decides: the

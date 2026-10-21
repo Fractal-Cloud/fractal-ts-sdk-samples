@@ -56,7 +56,10 @@ const boundedContextId = {
 // unique to it and clear of whatever networking the target environment already
 // has. Low 10.0.x ranges are commonly already in use, and the old hard-coded
 // 10.0.0.0/16 with a 10.0.1.0/24 subnet collided with them. Each sample owns
-// one /16 from 10.180.0.0/16 up and keeps its subnets inside it.
+// one /16 from 10.180.0.0/16 up and keeps its subnets inside it. On GCP the
+// range is the internal-traffic boundary (the vLLM ingress rule below) and the
+// span the subnets are carved from: a custom-mode GCP VPC carries no address
+// range of its own, so the network component sets none.
 //
 // The component id also becomes the VPC name on the AWS agent, so keep
 // 'inference-net' specific to this sample rather than something generic.
@@ -72,17 +75,19 @@ const VLLM_PORT = 8000;
 export function authorFractal() {
   return createFractal({
     id: 'gpu-inference',
-    version: {major: 1, minor: 0, patch: 0},
+    version: {major: 1, minor: 1, patch: 0},
     description:
       'A single GPU VM serving a self-hosted LLM (vLLM) over an OpenAI-compatible API.',
     boundedContextId,
     blueprint: bp => {
-      // ── Virtual network — address space is a governed guardrail. ──
+      // ── Virtual network. No address-space guardrail: a custom-mode GCP VPC
+      //    has none (its subnets carry the ranges), and building a LiveSystem
+      //    refuses a guardrail its offer cannot enforce. ──
       const network = bp.add(
         VirtualNetwork({
           id: 'inference-net',
           displayName: 'Inference Network',
-        }).withCidrBlock(VPC_CIDR),
+        }),
       );
 
       // ── Subnet — carved from the network CIDR; depends on it. ──
@@ -106,13 +111,16 @@ export function authorFractal() {
           .dependsOn(network),
       );
 
-      // ── GPU host — the VM that serves the model. A Linux box in the subnet
-      //    (depends on it). Its GPU machine size and the vLLM bootstrap are
-      //    offer config, chosen in gcp.ts. ──
+      // ── GPU host — the VM that serves the model, in the subnet (depends on
+      //    it). Its GPU machine size, its image (Ubuntu, hence its OS) and the
+      //    vLLM bootstrap are offer config, chosen in gcp.ts. No OS-type
+      //    guardrail: the GCP VM's operating system follows its image, and
+      //    building a LiveSystem refuses a guardrail its offer cannot enforce. ──
       const gpuHost = bp.add(
-        VirtualMachine({id: 'vllm-host', displayName: 'vLLM GPU Host'})
-          .withOsType('linux')
-          .dependsOn(subnet),
+        VirtualMachine({
+          id: 'vllm-host',
+          displayName: 'vLLM GPU Host',
+        }).dependsOn(subnet),
       );
 
       // ── Results bucket — where the box writes eval outputs and reads inputs.

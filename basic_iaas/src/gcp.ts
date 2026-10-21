@@ -36,7 +36,10 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'basic-iaas-gcp',
+    lockNetworkCidr: false,
+  });
   const liveSystem = fractal.specialize().toLiveSystem({
     name: 'basic-iaas',
     environment,

@@ -7,6 +7,9 @@ that already exists.
 
 ## What it shows
 
+- Creating the **Bounded Contexts** the environments group their resources in
+  (`cloud.boundedContexts.create`, an upsert), and passing their `qualifiedId`
+  (`Personal/<owner>/<shortName>`) as each environment's resource group.
 - A **management environment** that owns a **cloud agent** (Azure, full identity:
   tenant + subscription) and one **operational environment** (`prod`).
 - The operational env declares a cloud **account** (a subscription) plus a
@@ -24,7 +27,7 @@ that already exists.
 ```
 src/
   fractal.ts   # a minimal governed Fractal (one uploads bucket) — the sample payload
-  azure.ts     # init the environment tree, then deploy the LiveSystem into 'prod'
+  azure.ts     # create the Bounded Contexts, init the environment tree, then deploy the LiveSystem into 'prod'
 ```
 
 ## Run

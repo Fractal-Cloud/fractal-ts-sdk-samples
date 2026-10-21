@@ -25,28 +25,17 @@ const cloud = createFractalCloudClient(credentials);
 
 async function main() {
   const fractal = authorFractal();
-  const liveSystem = fractal
-    .specialize()
-    // Application-level operations: the app declares the routes it exposes. The
-    // architect's security guardrails (httpsOnly / rateLimit / cors) are locked
-    // and untouchable here.
-    .withRoute({
-      path: '/orders',
-      methods: ['GET', 'POST'],
-      upstream: 'orders-svc',
-    })
-    .withRoute({path: '/users', methods: ['GET'], upstream: 'users-svc'})
-    .toLiveSystem({
-      name: 'basic-api-management',
-      environment,
-      // ── The ONLY cloud-specific lines: one offer per component. ──
-      select: {
-        // No region pin. CloudFront is global and its control-plane calls are exempt from the
-        // region guardrail, but the origin bucket it creates is plain S3 and is not — pinning
-        // us-east-1 put that bucket outside the permitted region and the create was denied.
-        'acme-apim-gateway': AwsCloudFront({}),
-      },
-    });
+  const liveSystem = fractal.specialize().toLiveSystem({
+    name: 'basic-api-management',
+    environment,
+    // ── The ONLY cloud-specific lines: one offer per component. ──
+    select: {
+      // No region pin. CloudFront is global and its control-plane calls are exempt from the
+      // region guardrail, but the origin bucket it creates is plain S3 and is not — pinning
+      // us-east-1 put that bucket outside the permitted region and the create was denied.
+      'acme-apim-gateway': AwsCloudFront({}),
+    },
+  });
   const bc = liveSystem.boundedContext;
   console.log(
     'LIVE_SYSTEM_ID=' +

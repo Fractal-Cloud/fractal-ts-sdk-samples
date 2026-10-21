@@ -10,7 +10,7 @@ DistributedDataProcessing (analytics-workspace)
 ComputeCluster (analytics-cluster)  — Databricks cluster (max 10 workers, 30-min auto-termination)
 DataProcessingJob (etl-job)         — Scheduled ETL job (depends on cluster + workspace)
 MlExperiment (fraud-model)          — MLflow experiment tracker (depends on workspace)
-Datalake (acmebigdatalake)                     — Versioned object storage (versioning enabled)
+Datalake (acmebigdatalake)                     — Object storage; versioning locked where the offer enforces it (not on Azure)
 ```
 
 A cluster, a job and an experiment are all tenants of a Databricks workspace, so
@@ -40,11 +40,18 @@ only cloud-specific code; the blueprint in `fractal.ts` is identical across all.
 |---------|-------------|
 | Cluster max workers, auto-termination timeout | `fractal.ts` — guardrail |
 | ETL job retry policy | `fractal.ts` — guardrail |
-| Datalake object versioning | `fractal.ts` — guardrail |
+| Datalake object versioning (not on Azure) | `fractal.ts` — guardrail, per Posture |
 | Workspace → cluster / job / experiment dependencies | `fractal.ts` — structural |
 | Cluster → job dependency | `fractal.ts` — structural |
 | Cluster name, job schedule, experiment display name | `fractal.ts` — operations (app-level, not locked) |
-| Vendor-specific offer config (workspace pricing tier, bucket name, resource group, etc.) | per-cloud entrypoint — offer config |
+| Vendor-specific offer config (workspace pricing tier, cluster node type, bucket name, etc.) | per-cloud entrypoint — offer config |
+
+### Versioning on Azure
+
+Building a LiveSystem refuses a guardrail its offer cannot enforce. S3 and GCS
+lakes honor object versioning; the Azure Datalake agent sets none. So `azure.ts`
+authors the Fractal without it (`authorFractal({id: 'basic-big-data-azure',
+lockLakeVersioning: false})`), a Fractal of its own.
 
 ## Selecting a provider
 

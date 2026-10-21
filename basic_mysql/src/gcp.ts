@@ -53,16 +53,13 @@ async function main() {
     environment,
     // ── The ONLY cloud-specific lines: one GCP offer per component. ──
     select: {
-      // The agent reads `instanceTier`, `instanceEdition` and
-      // `instanceDataDiskSizeGb`. It has never read `tier` — the spelling the
-      // GCP PostgreSQL sample uses — and a parameter the published contract
-      // does not declare is pruned before it reaches the agent, so a `tier`
-      // here would be silently dropped. Do not copy that spelling.
+      // The agent reads `instanceTier` and `instanceEdition`; the disk size
+      // (`instanceDataDiskSizeGb`) is the Fractal's locked `storageGb`
+      // guardrail, so it is not set here.
       'mysql-dbms': GcpMySqlDbms({
         network,
         instanceTier: 'db-perf-optimized-N-4',
         instanceEdition: 'ENTERPRISE_PLUS',
-        instanceDataDiskSizeGb: 100,
       }),
     },
   });

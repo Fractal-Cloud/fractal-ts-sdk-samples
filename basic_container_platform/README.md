@@ -33,7 +33,7 @@ that holds for.)
 ## What it provisions
 
 ```
-VirtualNetwork (acme-container-platform-network, 10.181.0.0/16)
+VirtualNetwork (acme-container-platform-network, 10.181.0.0/16 — not on GCP)
 └── Subnet (private-subnet, 10.181.1.0/24)
 SecurityGroup (app-sg)
     ├── ingress: TCP 80   from 0.0.0.0/0     (public HTTP)
@@ -61,6 +61,14 @@ environment's own container registry, which a public image is not in. It points
 at Docker Hub's ECR Public mirror rather than `docker.io` because Hub rate-limits
 anonymous pulls per source IP, and a throttled pull looks exactly like a failed
 reconcile.
+
+### Network range on GCP
+
+A custom-mode GCP VPC has no address range of its own: its subnets carry the
+ranges. Building a LiveSystem refuses a guardrail its offer cannot enforce, so
+`gcp.ts` authors the Fractal without the network range
+(`authorFractal({id: 'basic-container-platform-gcp', lockNetworkCidr: false})`), a Fractal of
+its own. The subnet range stays locked on every cloud.
 
 ## Project layout
 

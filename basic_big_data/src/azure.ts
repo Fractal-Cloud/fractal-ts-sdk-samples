@@ -29,7 +29,10 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'basic-big-data-azure',
+    lockLakeVersioning: false,
+  });
   const liveSystem = fractal
     .specialize()
     .withClusterName('analytics')
@@ -40,10 +43,12 @@ async function main() {
       environment,
       select: {
         'analytics-workspace': AzureDatabricks({pricingTier: 'premium'}),
-        'analytics-cluster': AzureDatabricksCluster({}),
+        'analytics-cluster': AzureDatabricksCluster({
+          nodeTypeId: 'Standard_DS3_v2',
+        }),
         'etl-job': AzureDatabricksJob({}),
         'fraud-model': AzureDatabricksMlflow({}),
-        acmebigdatalake: AzureDatalake({resourceGroup: 'rg-bd'}),
+        acmebigdatalake: AzureDatalake({}),
       },
     });
 

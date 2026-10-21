@@ -43,7 +43,12 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'app-with-identity-eks-rds',
+    lockClusterVersion: true,
+    lockDatabaseCollation: false,
+    lockIdentityPolicy: true,
+  });
   const liveSystem = fractal
     .specialize()
     // Application-level operations: name the user directory, then add a stateful

@@ -1,11 +1,11 @@
 # basic_iaas
 
-Demonstrates a cloud-agnostic IaaS workload using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS, Azure, GCP, OCI, or Hetzner** — pick the target provider at runtime with a single environment variable. The vendor is named only when offers are selected; the Fractal itself never changes.
+Demonstrates a cloud-agnostic IaaS workload using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS, Azure, GCP, OCI, or Hetzner** — pick the target provider at runtime with a single environment variable. The vendor is named only when offers are selected; the Fractal changes only where an offer cannot enforce one of its guardrails (the network range on GCP, below).
 
 ## What it provisions
 
 ```
-VirtualNetwork  (acme-iaas-network, 10.182.0.0/16)
+VirtualNetwork  (acme-iaas-network, 10.182.0.0/16 — not on GCP)
 └── Subnet      (public-subnet, 10.182.1.0/24)
     ├── web-server  — frontend VM, links to api-server on TCP 8080
     └── api-server  — backend VM
@@ -19,6 +19,14 @@ All structure — CIDR guardrails, ingress rules, dependencies, and the
 `fractal.ts`. It is carried into every provider's live system automatically: the
 agent derives the managed security-group rules from the link settings. No
 per-provider rule configuration is needed.
+
+### Network range on GCP
+
+A custom-mode GCP VPC has no address range of its own: its subnets carry the
+ranges. Building a LiveSystem refuses a guardrail its offer cannot enforce, so
+`gcp.ts` authors the Fractal without the network range
+(`authorFractal({id: 'basic-iaas-gcp', lockNetworkCidr: false})`), a Fractal of
+its own. The subnet range stays locked on every cloud.
 
 ## Project layout
 

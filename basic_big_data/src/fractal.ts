@@ -37,14 +37,32 @@ const boundedContextId = {
 };
 
 /**
+ * The guardrails that depend on the target's offers. Building a LiveSystem
+ * refuses a guardrail its selected offer cannot enforce, so the architect locks
+ * only what the target honors. A posture is its own Fractal (its own id): one
+ * blueprint id must not stand for two different sets of guardrails.
+ */
+export type Posture = {
+  /** The Fractal id of this posture. */
+  id: string;
+  /**
+   * Lock object versioning on the data lake. S3 and GCS honor it; the
+   * Azure Datalake agent sets no blob versioning.
+   */
+  lockLakeVersioning: boolean;
+};
+
+/**
  * Author the "governed big data" Fractal. Returns a reusable, immutable Fractal:
  * `.specialize()` never mutates it, so it is safe to author once and instantiate
  * many times (see <cloud>.ts).
  */
-export function authorFractal() {
+export function authorFractal(
+  posture: Posture = {id: 'basic-big-data', lockLakeVersioning: true},
+) {
   return createFractal({
-    id: 'basic-big-data',
-    version: {major: 1, minor: 0, patch: 0},
+    id: posture.id,
+    version: {major: 1, minor: 1, patch: 0},
     description:
       'Governed data platform: a Spark workspace hosting a cluster, a ' +
       'scheduled ETL job, an ML experiment tracker, and a versioned data lake.',
@@ -90,7 +108,8 @@ export function authorFractal() {
         }).dependsOn(workspace), // structural: tracked in the workspace
       );
 
-      // ── Data lake — object versioning is governed (keep object history). ──
+      // ── Data lake — object versioning is governed (keep object history)
+      //    wherever the lake offer enforces it (see Posture). ──
       // The id becomes the storage/bucket name verbatim on Azure, where a
       // Datalake is an ADLS Gen2 STORAGE ACCOUNT and that name is GLOBAL across
       // all of Azure. The obvious id 'lake' is already taken by another party
@@ -98,11 +117,14 @@ export function authorFractal() {
       // this sample could never create it. Must stay lowercase alphanumeric and
       // <=24 chars: Azure storage accounts allow neither hyphens nor more than
       // 24. Do not shorten this back.
+      const datalake = Datalake({
+        id: 'acmebigdatalake',
+        displayName: 'Data Lake',
+      });
       const lake = bp.add(
-        Datalake({
-          id: 'acmebigdatalake',
-          displayName: 'Data Lake',
-        }).withVersioningEnabled(true), // guardrail
+        posture.lockLakeVersioning
+          ? datalake.withVersioningEnabled(true) // guardrail
+          : datalake,
       );
 
       return {workspace, cluster, job, experiment, lake};

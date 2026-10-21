@@ -5,9 +5,9 @@ Demonstrates a cloud-agnostic storage workload using the Fractal Cloud TypeScrip
 ## What it provisions
 
 ```
-ObjectStorage (uploads) — encrypted, versioned, private, 90-day retention, standard class
+ObjectStorage (uploads) — encrypted, private; versioned / 90-day retention / standard class where the offer enforces it
 
-RelationalDbms (storage-dbms) — PostgreSQL 16, zone-redundant HA, 30-day backup, 100 GB
+RelationalDbms (storage-dbms) — PostgreSQL 16, 30-day backup, 100 GB (Azure PostgreSQL only)
 +-- RelationalDatabase (orders) — charset: UTF8, collation: en_US.utf8
 +-- RelationalDatabase (audit)  — charset: UTF8, collation: en_US.utf8
 ```
@@ -19,7 +19,7 @@ The DBMS → Database dependency is auto-wired by `withDatabases()` in the bluep
 ```
 src/
   fractal.ts   # Cloud-agnostic blueprint: ObjectStorage, RelationalDbms, RelationalDatabase.
-               # Guardrails (encryption, HA, backup, version, charset/collation) locked here.
+               # Guardrails (encryption, backup, version, charset/collation) locked here.
                # Operations expose withFolders() and withDatabases() to the dev team.
   azure.ts     # Self-contained Azure entrypoint — copy and run
   gcp.ts       # Self-contained GCP entrypoint — copy and run
@@ -35,15 +35,14 @@ dispatch. The inline `select` map is the only target-specific code.
 
 | Concern | Declared in |
 |---------|-------------|
-| Engine version (`16`), HA mode, backup retention, storage size | `fractal.ts` — blueprint guardrails |
+| Engine version (`16`), backup retention, storage size (per Posture) | `fractal.ts` — blueprint guardrails |
 | Charset / collation per database | `fractal.ts` — blueprint guardrails |
 | DBMS → Database dependency | `fractal.ts` — auto-wired by `withDatabases()` |
-| Encryption, versioning, public access, retention, storage class | `fractal.ts` — blueprint guardrails |
+| Encryption, public access; versioning, retention, storage class per Posture | `fractal.ts` — blueprint guardrails |
 | Application folders and database names | per-target entrypoint — operations (`.withFolders()`, `.withDatabases()`) |
 | AWS S3 bucket region | per-target entrypoint — offer config (`AwsS3`) |
 | Azure PostgreSQL resource group | per-target entrypoint — offer config (`AzurePostgresDbms`) |
 | GCP Cloud Storage location | per-target entrypoint — offer config (`GcsBucket`) |
-| GCP Cloud SQL tier | per-target entrypoint — offer config (`GcpPostgresDbms`) |
 
 ## Selecting a target
 
@@ -51,9 +50,11 @@ Pick a target by running its entrypoint: `azure.js` · `gcp.js` · `mixed.js`
 
 | Entrypoint | `uploads` offer | `storage-dbms` offer |
 |-------|-----------------|------------------|
-| `azure.ts` | `AwsS3` (eu-west-1) | `AzurePostgresDbms` (rg-storage) |
-| `gcp.ts` | `GcsBucket` (EU) | `GcpPostgresDbms` (db-custom-2-7680) |
-| `mixed.ts` | `AwsS3` (us-east-1) | `AzurePostgresDbms` (rg-storage) |
+| `azure.ts` | `AzureBlob` (Standard_LRS) | `AzurePostgresDbms` |
+| `gcp.ts` | `GcsBucket` (EU) | `GcpPostgresDbms` |
+| `mixed.ts` | `AwsS3` (us-east-1) | `AzurePostgresDbms` |
+
+Building a LiveSystem refuses a guardrail its offer cannot enforce, so each entrypoint passes `authorFractal` the posture its offers honor, as a Fractal of its own (`basic-storage-azure`, `-gcp`, `-mixed`); see `Posture` in `fractal.ts`. Availability is no guardrail on any target.
 
 `mixed` is the headline example: two components in the same LiveSystem served by two different cloud vendors.
 
@@ -86,7 +87,7 @@ variable this sample reads, with the required ones left blank. Targets: `azure` 
 
 Pick a target by running its entrypoint (`azure.js` · `gcp.js` · `mixed.js`) — there is no target-selection environment variable.
 
-All offer configuration (regions, resource groups, tiers) is hardcoded in each per-target entrypoint. No additional environment variables are required.
+All offer configuration (regions, SKUs) is hardcoded in each per-target entrypoint. No additional environment variables are required.
 
 ## Running
 

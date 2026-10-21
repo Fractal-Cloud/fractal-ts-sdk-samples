@@ -9,13 +9,13 @@ vendors within one LiveSystem.
 ## What it provisions
 
 ```
-ContainerPlatform (app-platform)          — managed Kubernetes (guardrails: k8s version, network policy)
-RelationalDbms    (app-dbms)              — managed relational engine (guardrails: HA, backups, version)
-IdentityProvider  (idp)                   — OAuth pool/tenant (guardrails: MFA, password policy)
+ContainerPlatform (app-platform)          — managed Kubernetes (guardrails on EKS: k8s version)
+RelationalDbms    (app-dbms)              — managed relational engine (guardrails: backups, storage, version)
+IdentityProvider  (idp)                   — OAuth pool/tenant (guardrails: MFA; on Cognito also password policy, session duration)
 
 withStatefulService('orders') adds, in one governed verb:
   Workload            (orders)            — child of app-platform (your app image + resource/health guardrails)
-  RelationalDatabase  (orders-db)         — child of app-dbms
+  RelationalDatabase  (orders-db)         — child of app-dbms (guardrails on Azure PostgreSQL: charset, collation)
   link orders → orders-db  {access: read-write}   — DB role + connection env injected at reconcile
   link orders → idp        {clientType: web}      — provisions ONE web OAuth client
 ```
@@ -23,6 +23,40 @@ withStatefulService('orders') adds, in one governed verb:
 The `orders` **Workload** is a portable `CustomWorkloads.CaaS.KubernetesWorkload`,
 emitted by the platform offer and deployed onto the cluster by the CaaS/Kubernetes
 agent — **not** by the cloud (AWS/Azure/GCP) agent.
+
+## Guardrails per target
+
+Building a LiveSystem refuses a guardrail its selected offer cannot enforce, so
+the Fractal locks only what the target's offers honor. `authorFractal(posture)`
+takes the guardrails that differ, and each posture is its own Fractal id:
+
+| Entrypoint | Fractal id | Cluster version | Database charset + collation | Password policy + session duration |
+|---|---|---|---|---|
+| `aws.ts` | `app-with-identity-eks-rds` | locked (EKS honors it) | not set (RDS creates databases with engine defaults) | locked (Cognito honors them) |
+| `azure.ts` | `app-with-identity-aks` | not set (the AKS agent does not declare it) | locked | not set (the Entra External ID agent sets neither) |
+| `mixed.ts` | `app-with-identity` | locked | locked | locked |
+
+No posture locks a network policy provider: the EKS agent declares none for EKS
+Auto Mode. `azure.ts` does not call `withUserDirectory` either: Entra External ID
+names the tenant by the offer's `tenantName`.
+
+**Network isolation is the app team's job.** The SDK has no Kubernetes
+NetworkPolicy offer for EKS or AKS (only OpenShift's `OpenshiftSecurityGroup`),
+so this Fractal cannot isolate the
+`orders` workload. Nothing restricts pod-to-pod traffic until the app team applies
+Kubernetes `NetworkPolicy` objects to the workload's namespace themselves: a
+default-deny for ingress and egress, then allows for the traffic `orders` needs
+(its database, the identity provider, DNS and its ingress path), and make sure
+the cluster's network plugin enforces NetworkPolicy.
+
+**On Azure, account security is a gap, not a choice.** The Entra External ID agent
+sets neither a password policy nor a session duration, so `azure.ts` cannot lock
+them. Only MFA is governed there; password strength and session length are
+whatever the tenant's defaults are until the agent supports them.
+
+Availability is no guardrail on any target: RDS sets it with `multiAz` /
+`readerCount` and Azure PostgreSQL with `highAvailabilityMode`, in the offer
+config.
 
 ## Project layout
 

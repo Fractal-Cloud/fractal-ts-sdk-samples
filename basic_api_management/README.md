@@ -2,7 +2,7 @@
 
 Demonstrates a cloud-agnostic API Gateway using the Fractal Cloud TypeScript SDK. The same blueprint deploys on **AWS (CloudFront), Azure (API Management), or GCP (API Gateway)** — select the target provider at runtime with a single environment variable.
 
-This sample is also the clearest illustration of the **guardrails vs operations** distinction: the architect locks the gateway's security posture (HTTPS-only, rate limit, CORS allow-list) while the dev team declares application-level routes through the typed Interface.
+The Fractal sets **no guardrail and no operation**. The gateway settings the SDK offers (`withHttpsOnly`, `withRateLimit`, `withCors`, a `routes` list) are honored by none of these three offers, and building a LiveSystem refuses a setting its offer cannot enforce. A guardrail nobody enforces would only look like governance, so the Fractal locks nothing it cannot keep. What a gateway serves is its offer's configuration: on GCP the routes are the `apiConfig` OpenAPI document.
 
 ## What it provisions
 
@@ -10,13 +10,13 @@ This sample is also the clearest illustration of the **guardrails vs operations*
 ApiGateway (acme-apim-gateway)
 ```
 
-A single API Gateway component. The architect locks three security guardrails on it at design time: `httpsOnly`, `rateLimit`, and `cors`. The dev team appends routes via the `withRoute` operation.
+A single API Gateway component.
 
 ## Project layout
 
 ```
 src/
-  fractal.ts   # Architect-authored blueprint: ApiGateway with locked guardrails + withRoute operation
+  fractal.ts   # Architect-authored blueprint: one ApiGateway
   aws.ts       # Self-contained AWS entrypoint — copy and run
   azure.ts     # Self-contained Azure entrypoint — copy and run
   gcp.ts       # Self-contained GCP entrypoint — copy and run
@@ -32,9 +32,8 @@ only cloud-specific code; the blueprint in `fractal.ts` is identical across all.
 | Concern | Declared in |
 |---------|-------------|
 | Gateway component ID, version, display name | `fractal.ts` |
-| Locked guardrails: `httpsOnly`, `rateLimit`, `cors` | `fractal.ts` |
-| Application routes (`withRoute`) | `fractal.ts` operations / per-cloud entrypoint specialization |
-| Vendor offer config (AWS region, Azure SKU/publisher, GCP) | per-cloud entrypoint — offer config |
+| Routes (GCP: the `apiConfig` OpenAPI document) | per-cloud entrypoint — offer config |
+| Vendor offer config (AWS region, Azure SKU/publisher, GCP API config) | per-cloud entrypoint — offer config |
 
 ## Selecting a provider
 
@@ -42,15 +41,15 @@ Each per-cloud entrypoint maps the `acme-apim-gateway` component to a concrete o
 
 | Entrypoint | Offer selected | Notes |
 |-----------------|----------------|-------|
-| `aws.ts` | `AwsCloudFront` | `region: 'us-east-1'` |
-| `azure.ts` | `AzureApiManagement` | `publisherEmail`, `sku: 'Developer'` |
-| `gcp.ts` | `GcpApiGateway` | no extra config required |
+| `aws.ts` | `AwsCloudFront` | no region pin: CloudFront is global |
+| `azure.ts` | `AzureApiManagement` | `publisherEmail`, `skuName: 'Developer_1'` |
+| `gcp.ts` | `GcpApiGateway` | `apiConfig`: the OpenAPI 2.0 document of the routes (required by the GCP agent) |
 
 ```bash
 node build/src/azure.js
 ```
 
-The vendor-neutral CaaS offers `Ambassador` and `Traefik` are available as swap-in alternatives — swap one into a `select` map to run the same governed Fractal on any Kubernetes cluster with no cloud provider.
+The vendor-neutral CaaS offers `Ambassador` and `Traefik` are available as swap-in alternatives — swap one into a `select` map to run the same Fractal on a Kubernetes cluster.
 
 ## Quick start
 

@@ -39,6 +39,12 @@ every check in this repository and fails only against the cloud.
 ## Parameter spelling
 
 The agent reads `instanceTier`, `instanceEdition` and `instanceDataDiskSizeGb`.
-It has never read `tier`. A parameter the published contract does not declare is
-pruned before it reaches the agent, so a misspelled key is not ignored — it is
-silently deleted, and the instance comes up on the defaults with nothing logged.
+The offer config is generated from the agent's published contract, so a
+misspelled key does not compile. `instanceDataDiskSizeGb` is the Fractal's locked
+`storageGb` guardrail (100 GB): setting it in the offer config as well is refused.
+
+## Guardrails
+
+Storage is the only guardrail the Fractal locks. The Cloud SQL for MySQL agent
+declares no availability, backup retention or engine version, and building a
+LiveSystem refuses a guardrail its offer cannot enforce.

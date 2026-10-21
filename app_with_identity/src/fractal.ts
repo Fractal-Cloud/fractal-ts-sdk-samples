@@ -9,7 +9,7 @@
  *
  * Two kinds of specialization:
  *   - GUARDRAILS — the architect calls `.withXxx()` at design time; the value is
- *     LOCKED (infra/security posture: cluster version, HA, backups, MFA, ...).
+ *     LOCKED (infra/security posture: cluster version, backups, MFA, ...).
  *   - OPERATIONS — the typed Interface a consuming dev uses: application-level
  *     verbs only. `withStatefulService` adds ONE stateful service: a workload
  *     (child of the platform) + its own database (child of the DBMS) + the links
@@ -38,10 +38,37 @@ const boundedContextId = {
   name: process.env['BC_NAME'] ?? 'reusable-templates',
 };
 
-export function authorFractal() {
+/**
+ * The guardrails that depend on the target's offers. Building a LiveSystem
+ * refuses a guardrail its selected offer cannot enforce, so the architect locks
+ * only what the target honors. A posture is its own Fractal (its own id): one
+ * blueprint id must not stand for two different sets of guardrails.
+ */
+export type Posture = {
+  /** The Fractal id of this posture. */
+  id: string;
+  /**
+   * Lock the cluster's Kubernetes version. EKS honors it; the AKS agent does
+   * not declare it. No cluster agent here declares a network policy provider
+   * (EKS Auto Mode has none to choose), so no posture locks one.
+   */
+  lockClusterVersion: boolean;
+  /**
+   * Lock the identity provider's password policy and session duration. Cognito
+   * honors both; the Entra External ID agent sets neither.
+   */
+  lockIdentityPolicy: boolean;
+  /**
+   * Lock each service database's charset and collation. Azure PostgreSQL
+   * honors both; the RDS agent creates every database with its engine defaults.
+   */
+  lockDatabaseCollation: boolean;
+};
+
+export function authorFractal(posture: Posture) {
   return createFractal({
-    id: 'app-with-identity',
-    version: {major: 1, minor: 0, patch: 0},
+    id: posture.id,
+    version: {major: 1, minor: 1, patch: 0},
     description:
       'A governed web application platform: workloads run on a managed ' +
       'container platform, authenticate against an identity provider, and each ' +
@@ -49,41 +76,51 @@ export function authorFractal() {
     boundedContextId,
     blueprint: bp => {
       // ── The "where" — the managed container platform workloads run on.
-      //    Cluster version and network policy are governed posture. ──
+      //    The cluster version is governed posture where the target's cluster
+      //    offer enforces it. ──
+      const cluster = ContainerPlatform({
+        id: 'app-platform',
+        displayName: 'Application Platform',
+      });
       const platform = bp.add(
-        ContainerPlatform({
-          id: 'app-platform',
-          displayName: 'Application Platform',
-        })
-          // The Azure agent matches this against the region's orchestrator list by exact string
-          // equality, so it must be a full major.minor.patch that westeurope still offers —
-          // 1.35.7 is the region default. 1.29 was EOL and rejected.
-          .withKubernetesVersion('1.35.7') // guardrail
-          .withNetworkPolicyProvider('calico'), // guardrail
+        posture.lockClusterVersion
+          ? cluster
+              // EKS versions are '<major>.<minor>'; the agent upgrades one
+              // minor at a time and refuses a downgrade.
+              .withKubernetesVersion('1.35') // guardrail
+          : cluster,
       );
 
-      // ── Database engine — capacity, HA, backups and engine version governed.
-      //    Logical databases are added per service by withStatefulService. ──
+      // ── Database engine — capacity, backups and engine version governed.
+      //    Logical databases are added per service by withStatefulService.
+      //    Availability is not a guardrail: no PostgreSQL offer here reads it
+      //    (RDS sets it with multiAz / readerCount, Azure with
+      //    highAvailabilityMode), so it is the offer config's. ──
       const dbms = bp.add(
         RelationalDbms({
           id: 'app-dbms',
           displayName: 'Application Database Engine',
         })
-          .withHighAvailability('zone-redundant') // guardrail
           .withBackupRetentionDays(30) // guardrail
           .withStorageGb(100) // guardrail
           .withEngineVersion('16'), // guardrail
       );
 
-      // ── Identity provider — account security is governed. Password policy,
-      //    mandatory MFA and session duration are locked posture; the app only
-      //    names its user directory (withUserDirectory operation). App clients
-      //    are provisioned per link, inside withStatefulService. ──
+      // ── Identity provider — account security is governed. Mandatory MFA is
+      //    locked posture everywhere; password policy and session duration
+      //    where the target's offer enforces them. The app only names its user
+      //    directory (withUserDirectory operation). App clients are provisioned
+      //    per link, inside withStatefulService. ──
+      const identity = IdentityProvider({
+        id: 'idp',
+        displayName: 'Identity Provider',
+      }).withMfaConfiguration('ON'); // guardrail
       const idp = bp.add(
-        IdentityProvider({id: 'idp', displayName: 'Identity Provider'})
-          .withPasswordPolicy({minLength: 12}) // guardrail
-          .withMfaConfiguration('ON') // guardrail
-          .withSessionDuration(3600), // guardrail
+        posture.lockIdentityPolicy
+          ? identity
+              .withPasswordPolicy({minLength: 12}) // guardrail
+              .withSessionDuration(3600) // guardrail
+          : identity,
       );
 
       return {platform, dbms, idp};
@@ -113,12 +150,15 @@ export function authorFractal() {
         logoutUris?: string[];
         scopes?: string[];
       }) => {
-        const db = RelationalDatabase({
+        const database = RelationalDatabase({
           id: `${svc.name}-db`,
           displayName: `${svc.name} database`,
-        })
-          .withCharset('UTF8') // architect-governed default
-          .withCollation('en_US.utf8'); // architect-governed default
+        });
+        const db = posture.lockDatabaseCollation
+          ? database
+              .withCharset('UTF8') // architect-governed default
+              .withCollation('en_US.utf8') // architect-governed default
+          : database;
         const workload = Workload({id: svc.name, displayName: svc.name})
           .withImage(svc.image) // the app's own choice
           .withMaxReplicas(5) // guardrail

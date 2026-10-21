@@ -40,7 +40,7 @@ async function main() {
       environment,
       select: {
         'analytics-workspace': GcpDatabricks({pricingTier: 'premium'}),
-        'analytics-cluster': GcpDatabricksCluster({}),
+        'analytics-cluster': GcpDatabricksCluster({nodeTypeId: 'n2-highmem-4'}),
         'etl-job': GcpDatabricksJob({}),
         'fraud-model': GcpDatabricksMlflow({}),
         acmebigdatalake: GcpDatalake({bucketName: 'acmebigdatalake'}),

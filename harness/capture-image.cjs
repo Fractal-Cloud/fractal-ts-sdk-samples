@@ -53,7 +53,13 @@ function runTarget(target) {
       let body = '';
       req.on('data', c => (body += c));
       req.on('end', () => {
-        if (req.method === 'POST' && req.url.startsWith('/livesystems')) {
+        // The SDK asks the control plane to validate the LiveSystem before it
+        // posts it; that request carries the same body and is not the deploy.
+        if (
+          req.method === 'POST' &&
+          req.url.startsWith('/livesystems') &&
+          !req.url.endsWith('/validate')
+        ) {
           posts.push(JSON.parse(body));
         }
         if (req.method === 'GET' && req.url.startsWith('/livesystems/')) {

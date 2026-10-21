@@ -11,7 +11,7 @@ flat-cost LLM endpoint on your own hardware instead of a per-token metered API.
 ## What it provisions
 
 ```
-VirtualNetwork  (inference-net, 10.185.0.0/16)
+VirtualNetwork  (inference-net; GCP VPCs carry no range, the subnets do)
 └── Subnet      (inference-subnet, 10.185.1.0/24)
     └── vllm-host — GPU VM (a2-highgpu-1g = 1× A100 40 GB)
                     userData installs NVIDIA driver + toolkit, runs vLLM :8000

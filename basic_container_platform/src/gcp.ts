@@ -32,7 +32,10 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'basic-container-platform-gcp',
+    lockNetworkCidr: false,
+  });
   const liveSystem = fractal
     .specialize()
     // Application-level operations: the app picks its images + replica counts.

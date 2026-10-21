@@ -33,19 +33,53 @@ const boundedContextId = {
 };
 
 /**
+ * The guardrails that depend on the target's offers. Building a LiveSystem
+ * refuses a guardrail its selected offer cannot enforce, so the architect locks
+ * only what the target honors. A posture is its own Fractal (its own id): one
+ * blueprint id must not stand for two different sets of guardrails.
+ */
+export type Posture = {
+  /** The Fractal id of this posture. */
+  id: string;
+  /**
+   * Lock object versioning on the bucket. S3 and GCS honor it; the
+   * Azure Blob agent sets no blob versioning.
+   */
+  lockVersioning: boolean;
+  /**
+   * Lock the bucket's retention. S3 honors it (a lifecycle expiration);
+   * the Azure Blob and GCS agents set no retention.
+   */
+  lockRetention: boolean;
+  /**
+   * Lock the bucket's storage class. GCS honors it; S3 sets none and
+   * Azure Blob takes its tier from the offer's `accessTier`.
+   */
+  lockStorageClass: boolean;
+  /**
+   * Lock the DBMS backup retention, storage and engine version. Azure
+   * PostgreSQL honors them; the Cloud SQL for PostgreSQL agent declares
+   * none of them.
+   */
+  lockDbmsSizing: boolean;
+};
+
+/**
  * Author the "governed storage" Fractal. Returns a reusable, immutable Fractal:
  * `.specialize()` never mutates it, so it is safe to author once and instantiate
  * many times (see <cloud>.ts).
  */
-export function authorFractal() {
+export function authorFractal(posture: Posture) {
   return createFractal({
-    id: 'basic-storage',
-    version: {major: 1, minor: 0, patch: 0},
+    id: posture.id,
+    version: {major: 1, minor: 1, patch: 0},
     description: 'Governed storage: an uploads bucket + a relational database.',
     boundedContextId,
     blueprint: bp => {
-      // ── Uploads bucket — security posture + storage class are governed. ──
-      const uploads = bp.add(
+      // ── Uploads bucket — security posture is governed everywhere; history,
+      //    retention and storage class wherever the bucket offer enforces them
+      //    (see Posture). ──
+      let bucket =
         // The id becomes the bucket/account name verbatim on every cloud, and all three
         // namespaces are global. Plain 'uploads' is already owned by another party on S3
         // (HeadBucket answers 403, not 404), so this sample could never create it there.
@@ -53,14 +87,23 @@ export function authorFractal() {
         // neither hyphens nor more than 24. Do not shorten this back.
         ObjectStorage({id: 'acmestorageuploads', displayName: 'Uploads Bucket'})
           .withEncryption('at-rest') // guardrail: always encrypted
-          .withPublicAccess(false) // guardrail: never public
-          .withVersioningEnabled(true) // guardrail: keep object history
-          .withRetentionDays(90) // guardrail: minimum retention
-          .withStorageClass('standard'), // guardrail: infra param, not app's choice
-      );
+          .withPublicAccess(false); // guardrail: never public
+      if (posture.lockVersioning) {
+        bucket = bucket.withVersioningEnabled(true); // guardrail: keep object history
+      }
+      if (posture.lockRetention) {
+        bucket = bucket.withRetentionDays(90); // guardrail: minimum retention
+      }
+      if (posture.lockStorageClass) {
+        bucket = bucket.withStorageClass('standard'); // guardrail: infra param, not app's choice
+      }
+      const uploads = bp.add(bucket);
 
-      // ── Database engine — capacity, HA, backups and engine version governed.
-      //    The logical databases themselves are declared by the application via
+      // ── Database engine — capacity, backups and engine version governed
+      //    wherever the DBMS offer enforces them (see Posture). Availability is
+      //    no guardrail: Azure PostgreSQL sets it with highAvailabilityMode and
+      //    the Cloud SQL agent declares none. The logical databases themselves
+      //    are declared by the application via
       //    the withDatabases operation (each becomes a RelationalDatabase
       //    component emitted by the selected DBMS offer). ──
       // The component id is NOT cosmetic on Azure: the agent names the
@@ -69,15 +112,17 @@ export function authorFractal() {
       // is already declared by the app_with_identity sample, so both samples
       // requested the same global name in every sweep and whichever ran second
       // could never get it. Keep this id distinct from every other sample's.
+      const engine = RelationalDbms({
+        id: 'storage-dbms',
+        displayName: 'Application Database Engine',
+      });
       const dbms = bp.add(
-        RelationalDbms({
-          id: 'storage-dbms',
-          displayName: 'Application Database Engine',
-        })
-          .withHighAvailability('zone-redundant') // guardrail
-          .withBackupRetentionDays(30) // guardrail
-          .withStorageGb(100) // guardrail
-          .withEngineVersion('16'), // guardrail: infra param, not app's choice
+        posture.lockDbmsSizing
+          ? engine
+              .withBackupRetentionDays(30) // guardrail
+              .withStorageGb(100) // guardrail
+              .withEngineVersion('16') // guardrail: infra param, not app's choice
+          : engine,
       );
 
       return {uploads, dbms};

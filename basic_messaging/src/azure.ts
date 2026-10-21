@@ -31,7 +31,7 @@ async function main() {
     name: 'basic-messaging',
     environment,
     select: {
-      'event-broker': AzureServiceBus({resourceGroup: 'rg-msg'}),
+      'event-broker': AzureServiceBus({}),
       'orders-topic': AzureServiceBusTopic({}),
       'notifications-topic': AzureServiceBusTopic({}),
     },

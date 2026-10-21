@@ -4,7 +4,7 @@
  * deploying it.
  *
  * Why the observability offers still say CaaS while the cluster says Azure:
- * Prometheus and Jaeger are vendor-neutral — they are Kubernetes
+ * Prometheus, Jaeger and OpenSearch are vendor-neutral — they are Kubernetes
  * workloads and run the same way on any cluster. What is cloud-specific is the
  * cluster they land on and the network it sits in, so those are the components
  * that take Azure offers here.
@@ -23,6 +23,7 @@ import {
   Ambassador,
   Prometheus,
   Jaeger,
+  StorageOpenSearch,
 } from '@fractal_cloud/sdk/model';
 
 /**
@@ -36,6 +37,18 @@ const gatewayConfig = {
   namespace: 'ambassador',
 };
 
+/**
+ * The trace store. aria-agent-caas-k8s installs OpenSearch on the cluster and
+ * makes Jaeger its own user, with the credentials in a Secret in Jaeger's
+ * namespace. Sized for a sample: one node with a 10Gi volume instead of the
+ * offer's three nodes of 100Gi each.
+ */
+const traceStoreConfig = {
+  namespace: 'opensearch',
+  replicas: 1,
+  storage: '10Gi',
+};
+
 /** One offer per component. The ONLY cloud-specific lines in the sample. */
 export function azureSelect() {
   return {
@@ -47,6 +60,7 @@ export function azureSelect() {
     // the public host every console is published on.
     'platform-gateway': Ambassador(gatewayConfig),
     monitoring: Prometheus({namespace: 'monitoring'}),
+    'trace-store': StorageOpenSearch(traceStoreConfig),
     tracing: Jaeger({namespace: 'tracing'}),
   };
 }

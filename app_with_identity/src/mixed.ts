@@ -39,7 +39,12 @@ const credentials = {
 const cloud = createFractalCloudClient(credentials);
 
 async function main() {
-  const fractal = authorFractal();
+  const fractal = authorFractal({
+    id: 'app-with-identity',
+    lockClusterVersion: true,
+    lockDatabaseCollation: true,
+    lockIdentityPolicy: true,
+  });
   const liveSystem = fractal
     .specialize()
     .withUserDirectory('acme')
@@ -62,7 +67,7 @@ async function main() {
         idp: Cognito({}),
         // DB on Azure to demonstrate a cross-vendor LiveSystem; AwsRdsPostgresDbms
         // would keep the whole system on AWS.
-        'app-dbms': AzurePostgresDbms({resourceGroup: 'rg-data'}),
+        'app-dbms': AzurePostgresDbms({}),
       },
     });
 

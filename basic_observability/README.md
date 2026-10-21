@@ -2,7 +2,7 @@
 
 Demonstrates a governed observability stack using the Fractal Cloud TypeScript SDK. The architect authors a vendor-agnostic Fractal once; the dev selects concrete offers per component and deploys.
 
-The observability capabilities themselves are **self-hosted (CaaS)** — Prometheus and Jaeger are Kubernetes workloads and run the same way on any cluster. What is cloud-specific is the cluster they land on and the network it sits in. So the Fractal also declares the platform it observes: a network, a subnet, a managed cluster, and the API gateway every console is published behind.
+The observability capabilities themselves are **self-hosted (CaaS)** — Prometheus, Jaeger and Jaeger's OpenSearch trace store are Kubernetes workloads and run the same way on any cluster. What is cloud-specific is the cluster they land on and the network it sits in. So the Fractal also declares the platform it observes: a network, a subnet, a managed cluster, and the API gateway every console is published behind.
 
 ## What it provisions
 
@@ -12,9 +12,20 @@ Subnet            (platform-subnet)           — 10.183.1.0/24
 ContainerPlatform (platform-cluster)          — one autoscaling system pool (2–4 nodes)
 ApiGateway        (platform-gateway)          — in-cluster gateway, own namespace
 Monitoring        (monitoring)                — Prometheus + Grafana + Alertmanager
-                                                (retention: 30 days)
-Tracing           (tracing)                   — Jaeger  (retention: 7 days)
+Search            (trace-store)               — OpenSearch, Jaeger's trace store (1 node, 10Gi)
+Tracing           (tracing)                   — Jaeger, depends on and links to trace-store (read-write)
 ```
+
+## Where the traces are kept
+
+Jaeger keeps its traces in OpenSearch, so the Fractal declares a `Search` component (`trace-store`) next to it.
+`tracing` depends on `trace-store` and links to it with `searchLinkSettings({access: 'read-write'})`. The link is
+what the OpenSearch component's agent (`aria-agent-caas-k8s`, installing it on `platform-cluster`) acts on: it
+makes Jaeger its own user, with a role scoped to the `tracing-jaeger-*` indices, and puts the credentials and the
+cluster CA in a Secret in Jaeger's namespace. Building the LiveSystem refuses a Jaeger with no such link.
+
+`trace-store` is sized for a sample in `azure_select.ts` — one node with a 10Gi volume, instead of the offer's
+default of three nodes of 100Gi each. Raise `replicas` and `storage` there for anything that must survive a node.
 
 ## Why an API gateway is part of the sample
 
@@ -29,11 +40,12 @@ That path is guarded by the gateway component's type ending in `Ambassador`, so 
 ```
 src/
   fractal.ts   # Architect layer: vendor-agnostic blueprint — network, subnet, cluster,
-               #   gateway, Monitoring, Tracing.
-               #   Guardrails locked here: cidrBlock, nodePools, retentionDays.
+               #   gateway, Monitoring, Tracing and its Search trace store.
+               #   Guardrails locked here: cidrBlock, nodePools.
                #   Structure locked here: every CaaS capability depends on the cluster
                #   (that edge is how the agent resolves which cluster to install on)
-               #   and links to the gateway.
+               #   and links to the gateway; tracing also depends on and links to
+               #   the trace store.
                #   No operations (platform observability; no app-level verbs to expose).
   azure.ts     # Dev layer: runnable Azure entrypoint — copy it with azure_select.ts and run.
   azure_select.ts # The offer per component (the `select` map). Kept apart so
@@ -49,9 +61,12 @@ src/
 | `ContainerPlatform` | `platform-cluster` | `Aks({})` |
 | `ApiGateway` | `platform-gateway` | `Ambassador({namespace: 'ambassador'})` |
 | `Monitoring` | `monitoring` | `Prometheus({namespace: 'monitoring'})` |
+| `Search` | `trace-store` | `StorageOpenSearch({namespace: 'opensearch', replicas: 1, storage: '10Gi'})` |
 | `Tracing` | `tracing` | `Jaeger({namespace: 'tracing'})` |
 
-Architect guardrails (retention, CIDRs, node pools) are locked in `fractal.ts`. There are no dev-open operations — the stack is fully governed.
+Architect guardrails (CIDRs, node pools) are locked in `fractal.ts`. There are no dev-open operations — the stack is fully governed.
+
+Retention, scrape interval and sampling rate are not guardrails: the self-hosted Prometheus and Jaeger offers set none of them (Jaeger's sampling is decided by the instrumented applications), and building a LiveSystem refuses a guardrail its offer cannot enforce.
 
 ### The gateway
 
@@ -128,4 +143,4 @@ for Loki's chunks, so it is a larger change than this sample takes on. Add a `Lo
 
 ## Other clouds
 
-`aws.ts` and `gcp.ts` are mechanical: swap `AzureVnet` / `AzureSubnet` / `Aks` for `AwsVpc` / `AwsSubnet` / `Eks` or `GcpVpc` / `GcpSubnet` / `Gke` and leave the three CaaS selections untouched. They are deliberately not shipped yet — one entrypoint that is known to work is worth more than three that are assumed to.
+`aws.ts` and `gcp.ts` are mechanical: swap `AzureVnet` / `AzureSubnet` / `Aks` for `AwsVpc` / `AwsSubnet` / `Eks` or `GcpVpc` / `GcpSubnet` / `Gke` and leave the four CaaS selections untouched. They are deliberately not shipped yet — one entrypoint that is known to work is worth more than three that are assumed to.
