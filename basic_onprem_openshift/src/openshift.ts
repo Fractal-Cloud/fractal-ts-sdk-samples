@@ -63,6 +63,7 @@ async function main() {
           addresses: lbPoolAddresses,
         }),
         'web-service': OpenshiftService({
+          name: 'web-service',
           serviceType: 'LoadBalancer',
           port: 80,
           targetPort: 80,

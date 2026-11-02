@@ -5,7 +5,7 @@
  *   npm run compile && node build/src/aws.js
  */
 import {fatal} from './fatal';
-import {authorFractal} from './fractal';
+import {authorFractal, ETL_JOB_WHEEL} from './fractal';
 import {
   createFractalCloudClient,
   AwsDatabricks,
@@ -51,7 +51,7 @@ async function main() {
             process.env['DATABRICKS_STORAGE_CONFIGURATION_ID'] ?? '',
         }),
         'analytics-cluster': AwsDatabricksCluster({nodeTypeId: 'i3.xlarge'}),
-        'etl-job': AwsDatabricksJob({}),
+        'etl-job': AwsDatabricksJob({...ETL_JOB_WHEEL}),
         'fraud-model': AwsDatabricksMlflow({}),
         // The S3 bucket namespace is GLOBAL. 'acme-lake' is owned by a third
         // party (`aws s3api head-bucket --bucket acme-lake` answers 403, not

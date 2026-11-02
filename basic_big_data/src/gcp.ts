@@ -5,7 +5,7 @@
  *   npm run compile && node build/src/gcp.js
  */
 import {fatal} from './fatal';
-import {authorFractal} from './fractal';
+import {authorFractal, ETL_JOB_WHEEL} from './fractal';
 import {
   createFractalCloudClient,
   GcpDatabricks,
@@ -41,7 +41,7 @@ async function main() {
       select: {
         'analytics-workspace': GcpDatabricks({pricingTier: 'premium'}),
         'analytics-cluster': GcpDatabricksCluster({nodeTypeId: 'n2-highmem-4'}),
-        'etl-job': GcpDatabricksJob({}),
+        'etl-job': GcpDatabricksJob({...ETL_JOB_WHEEL}),
         'fraud-model': GcpDatabricksMlflow({}),
         acmebigdatalake: GcpDatalake({bucketName: 'acmebigdatalake'}),
       },

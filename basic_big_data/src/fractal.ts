@@ -37,6 +37,19 @@ const boundedContextId = {
 };
 
 /**
+ * What the ETL job runs: the maintained sample Python wheel (fractal-workload-samples
+ * jobs/databricks/python-wheel), pinned by digest. A Databricks job must name its artifact: without one the agent
+ * cannot tell what to run, and the live systems service refuses the job before anything is deployed.
+ */
+export const ETL_JOB_WHEEL = {
+  artifactType: 'python_wheel',
+  artifactUri:
+    'https://europe-docker.pkg.dev/v2/yanchware/fractal-cloud-public-components/yanchware/fractal-sample-databricks-job-python/blobs/sha256:046252852537a8c1d0ffdd2f2a089fec480bfc8c66019372e7193e1eca8b46a1',
+  packageName: 'fractal_sample_job',
+  entryPoint: 'main',
+} as const;
+
+/**
  * The guardrails that depend on the target's offers. Building a LiveSystem
  * refuses a guardrail its selected offer cannot enforce, so the architect locks
  * only what the target honors. A posture is its own Fractal (its own id): one

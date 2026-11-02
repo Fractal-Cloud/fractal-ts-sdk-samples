@@ -5,7 +5,7 @@
  *   npm run compile && node build/src/azure.js
  */
 import {fatal} from './fatal';
-import {authorFractal} from './fractal';
+import {authorFractal, ETL_JOB_WHEEL} from './fractal';
 import {
   createFractalCloudClient,
   AzureDatabricks,
@@ -46,7 +46,7 @@ async function main() {
         'analytics-cluster': AzureDatabricksCluster({
           nodeTypeId: 'Standard_DS3_v2',
         }),
-        'etl-job': AzureDatabricksJob({}),
+        'etl-job': AzureDatabricksJob({...ETL_JOB_WHEEL}),
         'fraud-model': AzureDatabricksMlflow({}),
         acmebigdatalake: AzureDatalake({}),
       },
