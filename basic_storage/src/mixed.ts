@@ -48,7 +48,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: mix vendors per component. ──
       select: {
         acmestorageuploads: AwsS3({region: 'us-east-1'}), // AWS object storage…
-        'storage-dbms': AzurePostgresDbms({}), // …+ Azure DB
+        'storage-dbms': AzurePostgresDbms({skuName: 'Standard_D2ds_v5'}), // …+ Azure DB
       },
     });
 

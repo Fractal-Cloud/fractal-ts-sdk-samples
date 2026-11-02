@@ -56,7 +56,7 @@ async function main() {
         'acme-container-platform-network': AzureVnet({}),
         'private-subnet': AzureSubnet({}),
         'app-sg': AzureNsg({region: 'westeurope', resourceGroup: 'rg-cp'}),
-        'app-cluster': Aks({}),
+        'app-cluster': Aks({managedClusterSkuTier: 'Free'}),
         // The blueprint says these run on 'app-cluster', so on Azure they are
         // plain Kubernetes workloads on the AKS cluster above. The serverless
         // alternative, AzureContainerApp, does NOT run on a cluster: it needs a

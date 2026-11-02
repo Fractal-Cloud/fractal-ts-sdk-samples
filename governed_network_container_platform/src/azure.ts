@@ -52,7 +52,7 @@ async function main() {
       // is the requested range, not the result. The cluster itself is private in
       // either mode on Azure, so that is not what molecule buys here.
       select: {
-        'governed-app-cluster': Aks({}),
+        'governed-app-cluster': Aks({managedClusterSkuTier: 'Free'}),
         // The workload: the SAME vendor-neutral CaaS offer in all three files.
         // It runs on 'governed-app-cluster' above, whichever cloud provides it.
         'governed-cluster-workload': K8sWorkload({

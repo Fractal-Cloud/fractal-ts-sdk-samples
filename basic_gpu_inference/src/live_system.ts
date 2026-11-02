@@ -38,6 +38,20 @@ const bootstrap = readFileSync(
 // environment default). us-central1 has on-demand A100 quota for the a2 GPU box;
 // override with REGION. The VM and its subnet must share the same region.
 const REGION = process.env['REGION'] ?? 'us-central1';
+// The agent creates no VM without a zone, inside REGION and offering the a2
+// (A100) machine type. Only the default region has a known default zone; zone
+// letters differ per region (europe-west1 has no -a), so any other REGION
+// needs ZONE set explicitly.
+// `||`, not `??`: an empty `ZONE=` line in .env is unset, not a blank zone.
+const ZONE =
+  process.env['ZONE'] ||
+  (REGION === 'us-central1' ? 'us-central1-a' : undefined);
+if (ZONE === undefined) {
+  throw new Error(
+    `ZONE is not set: set it to a zone of ${REGION} that offers a2-highgpu-1g ` +
+      `(gcloud compute accelerator-types list --filter="zone~${REGION} AND name=nvidia-tesla-a100").`,
+  );
+}
 
 const environment = {
   ownerType: 'Personal',
@@ -94,6 +108,7 @@ export function buildLiveSystem() {
         // cloud-platform (narrow via IAM roles on the SA). Omit to run without one.
         'vllm-host': GcpVm({
           region: REGION,
+          zone: ZONE,
           machineType: 'a2-highgpu-1g',
           userData: bootstrap,
           imageLink:

@@ -50,7 +50,7 @@ async function main() {
       // ── The ONLY cloud-specific lines: one Azure offer per component. ──
       select: {
         acmestorageuploads: AzureBlob({sku: 'Standard_LRS'}),
-        'storage-dbms': AzurePostgresDbms({}),
+        'storage-dbms': AzurePostgresDbms({skuName: 'Standard_D2ds_v5'}),
       },
     });
 
