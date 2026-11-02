@@ -63,9 +63,9 @@ async function main() {
       environment,
       // ── The ONLY cloud-specific lines: one Azure offer per component. ──
       select: {
-        'app-platform': Aks({}),
+        'app-platform': Aks({managedClusterSkuTier: 'Free'}),
         idp: EntraExternalId({tenantName: 'acmeexternal'}),
-        'app-dbms': AzurePostgresDbms({}),
+        'app-dbms': AzurePostgresDbms({skuName: 'Standard_D2ds_v5'}),
       },
     });
 

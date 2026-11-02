@@ -52,8 +52,14 @@ async function main() {
       // capped at 10 vCPU. Bsv2 has no 1-vCPU size, so this is 2 vCPU / 1 GiB
       // — the same memory B1s gave. Not the `p` (Arm) line, cheaper still but
       // needing an arm64 image.
-      'api-server': AzureVm({vmSize: 'Standard_B2ats_v2'}),
-      'web-server': AzureVm({vmSize: 'Standard_B2ats_v2'}),
+      'api-server': AzureVm({
+        vmSize: 'Standard_B2ats_v2',
+        imageId: 'Canonical:ubuntu-24_04-lts:server:latest',
+      }),
+      'web-server': AzureVm({
+        vmSize: 'Standard_B2ats_v2',
+        imageId: 'Canonical:ubuntu-24_04-lts:server:latest',
+      }),
     },
   });
 

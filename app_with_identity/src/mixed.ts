@@ -67,7 +67,7 @@ async function main() {
         idp: Cognito({}),
         // DB on Azure to demonstrate a cross-vendor LiveSystem; AwsRdsPostgresDbms
         // would keep the whole system on AWS.
-        'app-dbms': AzurePostgresDbms({}),
+        'app-dbms': AzurePostgresDbms({skuName: 'Standard_D2ds_v5'}),
       },
     });
 

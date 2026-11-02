@@ -54,7 +54,7 @@ export function azureSelect() {
   return {
     'acme-observability-network': AzureVnet({}),
     'platform-subnet': AzureSubnet({}),
-    'platform-cluster': Aks({}),
+    'platform-cluster': Aks({managedClusterSkuTier: 'Free'}),
     // Each capability gets its own namespace. The gateway's namespace is the
     // one the agent looks in for the gateway's own service when it resolves
     // the public host every console is published on.

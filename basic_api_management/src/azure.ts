@@ -32,6 +32,7 @@ async function main() {
     select: {
       'acme-apim-gateway': AzureApiManagement({
         publisherEmail: 'ops@acme.com',
+        publisherName: 'Acme',
         skuName: 'Developer_1',
       }),
     },

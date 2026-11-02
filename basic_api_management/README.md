@@ -42,7 +42,7 @@ Each per-cloud entrypoint maps the `acme-apim-gateway` component to a concrete o
 | Entrypoint | Offer selected | Notes |
 |-----------------|----------------|-------|
 | `aws.ts` | `AwsCloudFront` | no region pin: CloudFront is global |
-| `azure.ts` | `AzureApiManagement` | `publisherEmail`, `skuName: 'Developer_1'` |
+| `azure.ts` | `AzureApiManagement` | `publisherEmail`, `publisherName`, `skuName: 'Developer_1'` |
 | `gcp.ts` | `GcpApiGateway` | `apiConfig`: the OpenAPI 2.0 document of the routes (required by the GCP agent) |
 
 ```bash
